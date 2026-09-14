@@ -39,9 +39,25 @@ body {
 .site-header {
   display: flex;
   align-items: center;
+  gap: 16px;
   height: 80px;
   padding: 0 40px;
   border-bottom: 1px solid transparent;
+}
+
+.header-lab {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.header-lab:hover,
+.header-lab:focus-visible {
+  color: var(--cta);
+  outline: none;
 }
 
 .page.has-results .site-header {

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Journey planner v2</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Sora:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/src/v2/style.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#question-panel">Skip to question</a>
+
+    <header class="v2-header">
+      <a class="v2-wordmark" href="/v2/">journey <span>lab</span></a>
+      <a class="v2-classic" href="/">Classic search</a>
+    </header>
+
+    <main class="v2-main">
+      <p class="v2-kicker" id="planner-kicker">Compose your trip</p>
+      <h1 class="v2-title">Plan with the itinerary in view</h1>
+
+      <div class="v2-layout">
+        <section
+          class="v2-question"
+          id="question-panel"
+          aria-labelledby="question-heading"
+          tabindex="-1"
+        >
+          <div id="question-root"></div>
+        </section>
+
+        <aside class="v2-itinerary" aria-labelledby="itinerary-heading">
+          <div class="itinerary-card" id="itinerary-card">
+            <div class="itinerary-top">
+              <h2 id="itinerary-heading">Your itinerary</h2>
+              <button type="button" class="itinerary-toggle" id="itinerary-toggle" hidden aria-expanded="false">
+                Details
+              </button>
+            </div>
+            <div class="itinerary-body" id="itinerary-body"></div>
+            <p class="itinerary-hint" id="itinerary-hint"></p>
+            <button type="button" class="v2-search" id="search-btn">Search</button>
+          </div>
+        </aside>
+      </div>
+
+      <p class="v2-status" id="status" role="status" aria-live="polite"></p>
+    </main>
+
+    <script type="module" src="/src/v2/main.js"></script>
+  </body>
+</html>
