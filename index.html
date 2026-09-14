@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Journey planner</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="wordmark" href="/">journey</a>
+    </header>
+
+    <main class="page">
+      <section class="hero" id="hero">
+        <div class="hero-copy">
+          <h1>Where to next?</h1>
+          <div class="mode-switch pill-switch" role="tablist" aria-label="Search mode">
+            <span class="pill-switch-pill" aria-hidden="true"></span>
+            <button type="button" id="mode-tickets" role="tab" aria-selected="true">Day tickets</button>
+            <button type="button" id="mode-season" role="tab" aria-selected="false">Season tickets</button>
+            <button type="button" id="mode-others" role="tab" aria-selected="false">Others</button>
+          </div>
+        </div>
+
+        <form id="journey-form" class="search-form" autocomplete="off">
+          <div class="others-intro" id="others-intro">
+            <label class="others-product">
+              <input type="radio" name="others-product" value="rover" checked />
+              <span>
+                <span class="others-product-title">Rover tickets</span>
+                <span class="others-product-sub">Unlimited travel within a specified area</span>
+              </span>
+            </label>
+          </div>
+          <div class="search-shell">
+          <div class="search-bar" id="search-bar">
+            <button type="button" class="search-cell" id="rover-trigger" data-cell="rover" aria-expanded="false" aria-haspopup="listbox">
+              <span class="cell-label">Rover</span>
+              <span class="cell-value" id="rover-summary">All Line rover (14 days)</span>
+            </button>
+            <input id="rover-product" type="hidden" value="all-line-14" />
+            <div class="search-rule rover-rule" aria-hidden="true"></div>
+
+            <div class="station-pair">
+            <div class="search-cell station-field" data-cell="from">
+              <label for="origin">From</label>
+              <input
+                id="origin"
+                type="text"
+                placeholder="Search stations"
+                spellcheck="false"
+                aria-autocomplete="list"
+                aria-controls="origin-suggestions"
+              />
+              <input id="origin-crs" type="hidden" name="origin" />
+            </div>
+
+            <button type="button" class="swap-stations" id="swap-stations" aria-label="Swap origin and destination">
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M6.99 11 3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"
+                />
+              </svg>
+            </button>
+
+            <div class="search-cell station-field" data-cell="to">
+              <label for="destination">To</label>
+              <input
+                id="destination"
+                type="text"
+                placeholder="Search stations"
+                spellcheck="false"
+                aria-autocomplete="list"
+                aria-controls="destination-suggestions"
+              />
+              <input id="destination-crs" type="hidden" name="destination" />
+            </div>
+            </div>
+
+            <div class="search-rule" aria-hidden="true"></div>
+
+            <div class="when-pair" data-cell="when">
+              <button type="button" class="search-cell when-leg" id="outbound-trigger" aria-expanded="false">
+                <span class="cell-label">Outbound</span>
+                <span class="cell-value is-placeholder" id="outbound-summary">Add date</span>
+                <span class="cell-value when-time" id="outbound-time" hidden></span>
+              </button>
+              <div class="search-rule when-mid-rule" aria-hidden="true"></div>
+              <button type="button" class="search-cell when-leg" id="return-trigger" aria-expanded="false" hidden>
+                <span class="cell-label">Return</span>
+                <span class="cell-value" id="return-summary">Add date</span>
+                <span class="cell-value when-time" id="return-time-summary" hidden></span>
+              </button>
+              <button type="button" class="search-cell when-leg when-add-return" id="add-return-trigger" aria-expanded="false">
+                <span class="cell-label">Return</span>
+                <span class="cell-value is-placeholder">Add return</span>
+              </button>
+            </div>
+
+            <div class="search-rule" aria-hidden="true"></div>
+
+            <button type="button" class="search-cell" id="who-trigger" data-cell="who">
+              <span class="cell-label">Who</span>
+              <span class="cell-value" id="who-summary">1 adult</span>
+              <span class="cell-value is-placeholder" id="who-railcards">No railcard</span>
+            </button>
+
+            <div class="search-rule season-rule" aria-hidden="true"></div>
+
+            <button type="button" class="search-cell" id="season-start-trigger" data-cell="season-start" aria-expanded="false">
+              <span class="cell-label">Starting</span>
+              <span class="cell-value" id="season-start-summary">Today</span>
+            </button>
+
+            <div class="search-rule season-rule season-until-rule" aria-hidden="true"></div>
+
+            <button type="button" class="search-cell" id="season-until-trigger" data-cell="season-until" aria-expanded="false" hidden>
+              <span class="cell-label">Until</span>
+              <span class="cell-value is-placeholder" id="season-until-summary">Add date</span>
+            </button>
+
+            <div class="search-rule others-mid-rule" aria-hidden="true"></div>
+            <div class="search-rule season-rule" aria-hidden="true"></div>
+
+            <button type="button" class="search-cell" id="season-who-trigger" data-cell="season-who" aria-expanded="false">
+              <span class="cell-label">Passenger</span>
+              <span class="cell-value" id="season-who-summary">Adult</span>
+              <span class="cell-value is-placeholder" id="season-who-railcard">No railcard</span>
+            </button>
+          </div>
+
+          <div class="search-panel rover-panel" id="rover-panel" hidden>
+            <div class="rover-options" id="rover-options" role="listbox" aria-label="Rover ticket"></div>
+          </div>
+
+          <div class="search-panel when-panel" id="when-panel" hidden>
+            <input id="date" name="date" type="hidden" required />
+            <input id="time" name="time" type="hidden" required />
+            <input id="return-date" name="return-date" type="hidden" />
+            <input id="return-time" name="return-time" type="hidden" />
+            <input id="outward-mode" type="hidden" value="Depart" />
+            <input id="return-mode" type="hidden" value="Depart" />
+            <input id="open-return" type="checkbox" hidden />
+
+            <div class="trip-type pill-switch" id="trip-type" role="radiogroup" aria-label="Journey type">
+              <button type="button" id="trip-single" aria-selected="false">Single</button>
+              <button type="button" id="trip-return" aria-selected="true">Return</button>
+              <button type="button" id="trip-open" aria-selected="false">Open Return</button>
+            </div>
+
+            <div class="calendar-shell">
+              <div class="calendar-nav">
+                <button type="button" class="cal-nav" id="cal-prev" aria-label="Previous month">‹</button>
+                <div class="calendar-titles">
+                  <h3 id="cal-month-label">Month</h3>
+                  <h3 id="cal-month-label-next">Month</h3>
+                </div>
+                <button type="button" class="cal-nav" id="cal-next" aria-label="Next month">›</button>
+              </div>
+              <div class="calendars">
+                <div class="calendar-grid" id="calendar-grid"></div>
+                <div class="calendar-grid" id="calendar-grid-next"></div>
+              </div>
+            </div>
+
+            <div class="time-row">
+              <div class="time-block">
+                <div class="time-block-head">
+                  <p class="panel-kicker">Outward</p>
+                  <span class="time-block-date" id="outward-date-label"></span>
+                </div>
+                <div class="time-pickers">
+                  <div class="mini-picker" id="outward-mode-picker">
+                    <button type="button" class="mini-picker-trigger" id="outward-mode-trigger" aria-haspopup="listbox" aria-expanded="false">
+                      <span id="outward-mode-label">Leaving at</span>
+                      <span class="mini-picker-caret" aria-hidden="true">▾</span>
+                    </button>
+                    <ul class="mini-picker-menu" id="outward-mode-menu" hidden role="listbox">
+                      <li><button type="button" role="option" data-mode="Depart">Leaving at</button></li>
+                      <li><button type="button" role="option" data-mode="Arrive">Arriving by</button></li>
+                    </ul>
+                  </div>
+                  <div class="mini-picker mini-picker-time" id="outward-time-picker">
+                    <button type="button" class="mini-picker-trigger" id="outward-time-trigger" aria-haspopup="listbox" aria-expanded="false">
+                      <span id="outward-time-value">12:00</span>
+                      <span class="mini-picker-caret" aria-hidden="true">▾</span>
+                    </button>
+                    <ul class="mini-picker-menu picker-times" id="outward-time-menu" hidden role="listbox"></ul>
+                  </div>
+                </div>
+              </div>
+              <div class="time-block" id="return-time-block">
+                <div class="time-block-head">
+                  <p class="panel-kicker">Return</p>
+                  <span class="time-block-date" id="return-date-label"></span>
+                </div>
+                <div class="time-pickers" id="return-pickers">
+                  <div class="mini-picker" id="return-mode-picker">
+                    <button type="button" class="mini-picker-trigger" id="return-mode-trigger" aria-haspopup="listbox" aria-expanded="false">
+                      <span id="return-mode-label">Leaving at</span>
+                      <span class="mini-picker-caret" aria-hidden="true">▾</span>
+                    </button>
+                    <ul class="mini-picker-menu" id="return-mode-menu" hidden role="listbox">
+                      <li><button type="button" role="option" data-mode="Depart">Leaving at</button></li>
+                      <li><button type="button" role="option" data-mode="Arrive">Arriving by</button></li>
+                    </ul>
+                  </div>
+                  <div class="mini-picker mini-picker-time" id="return-time-picker">
+                    <button type="button" class="mini-picker-trigger" id="return-time-trigger" aria-haspopup="listbox" aria-expanded="false">
+                      <span id="return-time-value">16:00</span>
+                      <span class="mini-picker-caret" aria-hidden="true">▾</span>
+                    </button>
+                    <ul class="mini-picker-menu picker-times" id="return-time-menu" hidden role="listbox"></ul>
+                  </div>
+                </div>
+                <p class="open-return-note" id="open-return-note" hidden>Open Return</p>
+                <p class="when-hint" id="when-hint" hidden>Select a return date on the calendar</p>
+              </div>
+            </div>
+
+            <div class="when-done-row">
+              <button type="button" class="when-remove-return" id="when-remove-return" hidden>Remove return</button>
+              <button type="button" class="when-done" id="when-done">Done</button>
+            </div>
+          </div>
+
+          <div class="search-panel who-panel" id="who-panel" hidden>
+            <div class="guest-row">
+              <div>
+                <p class="guest-title">Adults</p>
+                <p class="guest-sub">16 or over</p>
+              </div>
+              <div class="stepper">
+                <button type="button" class="stepper-btn" data-step="adults" data-delta="-1" aria-label="Fewer adults">
+                  −
+                </button>
+                <input id="adults" name="adults" type="number" value="1" min="0" max="9" required />
+                <button type="button" class="stepper-btn" data-step="adults" data-delta="1" aria-label="More adults">
+                  +
+                </button>
+              </div>
+            </div>
+            <div class="guest-row">
+              <div>
+                <p class="guest-title">Children</p>
+                <p class="guest-sub">Under 5s travel for free</p>
+              </div>
+              <div class="stepper">
+                <button type="button" class="stepper-btn" data-step="children" data-delta="-1" aria-label="Fewer children">
+                  −
+                </button>
+                <input id="children" name="children" type="number" value="0" min="0" max="9" required />
+                <button type="button" class="stepper-btn" data-step="children" data-delta="1" aria-label="More children">
+                  +
+                </button>
+              </div>
+            </div>
+            <div class="railcards-block">
+              <div class="railcards-head">
+                <p class="guest-title">Railcards</p>
+                <p class="guest-sub">Add any discounts you hold</p>
+              </div>
+              <div id="railcard-list" class="railcard-list"></div>
+              <button type="button" id="add-railcard" class="text-link add-railcard">Add</button>
+            </div>
+          </div>
+
+          <div class="search-panel when-panel" id="season-start-panel" hidden>
+            <input id="season-start" type="hidden" />
+            <div class="calendar-shell">
+              <div class="calendar-nav">
+                <button type="button" class="cal-nav" data-cal-prev aria-label="Previous month">‹</button>
+                <div class="calendar-titles">
+                  <h3 data-cal-month>Month</h3>
+                  <h3 data-cal-month-next>Month</h3>
+                </div>
+                <button type="button" class="cal-nav" data-cal-next aria-label="Next month">›</button>
+              </div>
+              <div class="calendars">
+                <div class="calendar-grid" data-cal-grid></div>
+                <div class="calendar-grid" data-cal-grid-next></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="search-panel when-panel" id="season-until-panel" hidden>
+            <input id="season-until" type="hidden" />
+            <div class="calendar-shell">
+              <div class="calendar-nav">
+                <button type="button" class="cal-nav" data-cal-prev aria-label="Previous month">‹</button>
+                <div class="calendar-titles">
+                  <h3 data-cal-month>Month</h3>
+                  <h3 data-cal-month-next>Month</h3>
+                </div>
+                <button type="button" class="cal-nav" data-cal-next aria-label="Next month">›</button>
+              </div>
+              <div class="calendars">
+                <div class="calendar-grid" data-cal-grid></div>
+                <div class="calendar-grid" data-cal-grid-next></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="search-panel who-panel" id="season-who-panel" hidden>
+            <p class="guest-title">Passenger</p>
+            <p class="guest-sub">Season tickets are sold for one traveller. Choose adult or child.</p>
+            <div class="season-passenger pill-switch" role="radiogroup" aria-label="Passenger type">
+              <button type="button" id="season-adult" aria-selected="true">Adult</button>
+              <button type="button" id="season-child" aria-selected="false">Child</button>
+            </div>
+            <input id="season-passenger" type="hidden" value="adult" />
+            <label class="season-railcard" id="season-railcard-row">
+              <input id="season-railcard" type="checkbox" />
+              16-17 Saver
+            </label>
+            <p class="season-railcard-hint">The 16-17 Saver is the only railcard that can be used with a season ticket.</p>
+          </div>
+          </div>
+
+          <div class="filter-row">
+            <div class="season-lengths" id="season-lengths" role="group" aria-label="Season ticket length">
+              <label class="season-length">
+                <input type="checkbox" name="season-length" value="flexi" checked />
+                Flexi Season
+                <button type="button" class="season-length-help" aria-label="About Flexi Season" title="Travel any 8 days in a 28-day period">?</button>
+              </label>
+              <label class="season-length">
+                <input type="checkbox" name="season-length" value="weekly" checked />
+                Weekly
+              </label>
+              <label class="season-length">
+                <input type="checkbox" name="season-length" value="monthly" checked />
+                Monthly
+              </label>
+              <label class="season-length">
+                <input type="checkbox" name="season-length" value="annual" checked />
+                Annual
+              </label>
+              <label class="season-length">
+                <input type="checkbox" name="season-length" value="custom" />
+                Custom length
+              </label>
+            </div>
+            <div class="filter-chips">
+            <div class="filter-chip" id="route-chip">
+              <button type="button" class="chip-main" id="route-trigger" aria-expanded="false">
+                <span id="route-chip-label">Via/avoid</span>
+              </button>
+              <button type="button" class="chip-clear" id="route-clear" hidden aria-label="Remove via or avoid">
+                <svg viewBox="0 0 32 32" width="12" height="12" aria-hidden="true">
+                  <path d="M6 6l20 20M26 6 6 26" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+                </svg>
+              </button>
+            </div>
+            <div class="filter-chip" id="discount-chip">
+              <button type="button" class="chip-main" id="discount-trigger" aria-expanded="false">
+                <span id="discount-chip-label">+ Discount code</span>
+              </button>
+              <button type="button" class="chip-clear" id="discount-clear" hidden aria-label="Remove discount code">
+                <svg viewBox="0 0 32 32" width="12" height="12" aria-hidden="true">
+                  <path d="M6 6l20 20M26 6 6 26" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+                </svg>
+              </button>
+            </div>
+            </div>
+            <div class="search-actions">
+            <button type="button" class="search-secondary search-tickets" id="search-tickets">Search tickets</button>
+            <button type="submit" class="search-submit">
+              <svg viewBox="0 0 32 32" width="16" height="16" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M13 3a10 10 0 0 1 7.9 16.1l6 6a1.5 1.5 0 0 1-2.1 2.1l-6-6A10 10 0 1 1 13 3Zm0 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14Z"
+                />
+              </svg>
+              <span class="search-submit-label-desk">Search Trains and Times</span>
+              <span class="search-submit-label-mobile">Search Trains and times</span>
+              <span class="search-submit-label-compact">Search</span>
+              <span class="search-submit-label-season">Search Seasons</span>
+            </button>
+            </div>
+          </div>
+
+          <div class="search-panel filter-panel" id="route-panel" hidden>
+            <div class="route-mode pill-switch" role="tablist" aria-label="Via or avoid">
+              <button type="button" class="route-mode-btn" id="route-mode-via" role="tab" aria-selected="true">Via</button>
+              <button type="button" class="route-mode-btn" id="route-mode-avoid" role="tab" aria-selected="false">Avoid</button>
+            </div>
+            <div class="station-field" id="via-field">
+              <label for="via">Station</label>
+              <input
+                id="via"
+                type="text"
+                placeholder="Search stations"
+                spellcheck="false"
+                aria-autocomplete="list"
+                aria-controls="via-suggestions"
+              />
+              <input id="via-nlc" type="hidden" name="via" />
+            </div>
+            <div class="station-field" id="avoid-field" hidden>
+              <label for="avoid">Station</label>
+              <input
+                id="avoid"
+                type="text"
+                placeholder="Search stations"
+                spellcheck="false"
+                aria-autocomplete="list"
+                aria-controls="avoid-suggestions"
+              />
+              <input id="avoid-nlc" type="hidden" name="avoid" />
+            </div>
+          </div>
+
+          <div class="search-panel filter-panel" id="discount-panel" hidden>
+            <label for="discount-code">Discount code</label>
+            <div class="discount-row">
+              <input
+                id="discount-code"
+                name="discount-code"
+                type="text"
+                placeholder="Enter code"
+                spellcheck="false"
+                autocomplete="off"
+              />
+              <button type="button" class="discount-apply" id="discount-apply">Apply</button>
+            </div>
+            <p class="discount-status" id="discount-status" hidden></p>
+          </div>
+        </form>
+      </section>
+
+      <p id="status" class="status" role="status"></p>
+      <section id="results" class="results" hidden></section>
+    </main>
+
+    <dialog id="journey-dialog" class="journey-dialog">
+      <div class="dialog-header">
+        <button type="button" id="close-journey" class="icon-close" aria-label="Close">
+          <svg viewBox="0 0 32 32" width="16" height="16" aria-hidden="true">
+            <path
+              d="M6 6l20 20M26 6 6 26"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="3"
+              stroke-linecap="round"
+            />
+          </svg>
+        </button>
+        <div class="view-switch pill-switch" role="tablist" aria-label="Journey detail view">
+          <button type="button" id="view-overview" role="tab" aria-selected="true">Overview</button>
+          <button type="button" id="view-json" role="tab" aria-selected="false">JSON</button>
+        </div>
+        <span class="header-spacer" aria-hidden="true"></span>
+      </div>
+      <div id="journey-overview" class="dialog-body"></div>
+      <pre id="journey-json-body" class="dialog-body json-body" hidden></pre>
+    </dialog>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
