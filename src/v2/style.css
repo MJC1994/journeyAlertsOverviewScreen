@@ -104,10 +104,13 @@ a {
 }
 
 .v2-classic {
-  margin-left: auto;
   font-size: 0.92rem;
   font-weight: 600;
   text-underline-offset: 3px;
+}
+
+.v2-header .v2-classic:first-of-type {
+  margin-left: auto;
 }
 
 .v2-classic:focus-visible,

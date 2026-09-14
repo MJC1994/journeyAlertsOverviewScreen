@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#101114" />
+    <title>Journey planner v3</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/src/v3/style.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#step-root">Skip to step</a>
+
+    <div class="app">
+      <header class="topbar">
+        <a class="brand" href="/v3/">journey <span>v3</span></a>
+        <nav class="top-links" aria-label="Other versions">
+          <a href="/v2/">v2</a>
+          <a href="/">Classic</a>
+        </nav>
+      </header>
+
+      <div class="progress" aria-label="Trip progress">
+        <ol class="progress-dots" id="progress-dots"></ol>
+        <p class="progress-label" id="progress-label"></p>
+      </div>
+
+      <button type="button" class="trip-strip" id="trip-strip" aria-expanded="false">
+        <span class="trip-strip-main" id="trip-strip-main"></span>
+        <span class="trip-strip-meta" id="trip-strip-meta"></span>
+        <span class="trip-strip-action">Review</span>
+      </button>
+
+      <main class="stage" id="step-root" tabindex="-1" aria-live="polite"></main>
+
+      <footer class="dock" aria-label="Step actions">
+        <button type="button" class="dock-back" id="dock-back">Back</button>
+        <button type="button" class="dock-primary" id="dock-primary">Continue</button>
+      </footer>
+
+      <p class="toast" id="toast" role="status" aria-live="polite"></p>
+    </div>
+
+    <dialog class="sheet" id="review-sheet" aria-labelledby="review-title">
+      <form method="dialog" class="sheet-inner">
+        <div class="sheet-handle" aria-hidden="true"></div>
+        <header class="sheet-head">
+          <h2 id="review-title">Your trip</h2>
+          <button type="submit" class="sheet-close" value="cancel" aria-label="Close review">Close</button>
+        </header>
+        <div class="sheet-body" id="review-body"></div>
+        <button type="button" class="sheet-search" id="sheet-search">Search with these details</button>
+      </form>
+    </dialog>
+
+    <script type="module" src="/src/v3/main.js"></script>
+  </body>
+</html>

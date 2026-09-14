@@ -13,6 +13,16 @@
   status = 200
 
 [[redirects]]
+  from = "/v3"
+  to = "/v3/"
+  status = 301
+
+[[redirects]]
+  from = "/v3/"
+  to = "/v3/index.html"
+  status = 200
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200

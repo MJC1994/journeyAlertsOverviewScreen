@@ -10,6 +10,7 @@ export default defineConfig({
       input: {
         main: resolve(root, "index.html"),
         v2: resolve(root, "v2/index.html"),
+        v3: resolve(root, "v3/index.html"),
       },
     },
   },

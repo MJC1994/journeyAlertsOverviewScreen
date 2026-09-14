@@ -46,12 +46,15 @@ body {
 }
 
 .header-lab {
-  margin-left: auto;
   color: var(--muted);
   font-size: 0.9rem;
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+.header-lab:first-of-type {
+  margin-left: auto;
 }
 
 .header-lab:hover,
