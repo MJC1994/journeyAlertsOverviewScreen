@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Journey</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body class="journey-screen">
+    <header class="site-header">
+      <a class="wordmark" href="/">journey</a>
+      <a class="header-lab" href="/">Back to search</a>
+      <label class="flag-toggle">
+        <span class="flag-toggle-label">Get to the Stadium</span>
+        <span class="flag-toggle-control">
+          <input id="stadium-toggle" class="flag-toggle-input" type="checkbox" role="switch" />
+          <span class="flag-toggle-switch" aria-hidden="true"></span>
+        </span>
+      </label>
+    </header>
+
+    <main class="page journey-view">
+      <p id="journey-status" class="status" role="status">Loading journey…</p>
+      <article id="journey-detail" class="journey-detail" hidden></article>
+    </main>
+
+    <script type="module" src="/src/journey-page.js"></script>
+  </body>
+</html>

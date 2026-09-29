@@ -3,6 +3,28 @@
   publish = "dist"
 
 [[redirects]]
+  from = "/jp/journey-plan"
+  to = "/.netlify/functions/journey-plan"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/departure-boards/service/:rid"
+  to = "/.netlify/functions/departure-boards?rid=:rid"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/journey"
+  to = "/journey/"
+  status = 301
+
+[[redirects]]
+  from = "/journey/*"
+  to = "/journey/index.html"
+  status = 200
+
+[[redirects]]
   from = "/v2"
   to = "/v2/"
   status = 301

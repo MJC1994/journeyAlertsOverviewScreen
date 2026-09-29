@@ -56,7 +56,7 @@
               <input
                 id="origin"
                 type="text"
-                placeholder="Search stations"
+                placeholder="Choose a station"
                 spellcheck="false"
                 aria-autocomplete="list"
                 aria-controls="origin-suggestions"
@@ -78,7 +78,7 @@
               <input
                 id="destination"
                 type="text"
-                placeholder="Search stations"
+                placeholder="Choose a station"
                 spellcheck="false"
                 aria-autocomplete="list"
                 aria-controls="destination-suggestions"
@@ -92,14 +92,18 @@
             <div class="when-pair" data-cell="when">
               <button type="button" class="search-cell when-leg" id="outbound-trigger" aria-expanded="false">
                 <span class="cell-label">Outbound</span>
-                <span class="cell-value is-placeholder" id="outbound-summary">Add date</span>
-                <span class="cell-value when-time" id="outbound-time" hidden></span>
+                <span class="cell-meta">
+                  <span class="cell-value is-placeholder" id="outbound-summary">Add date</span>
+                  <span class="cell-value when-time" id="outbound-time" hidden></span>
+                </span>
               </button>
               <div class="search-rule when-mid-rule" aria-hidden="true"></div>
               <button type="button" class="search-cell when-leg" id="return-trigger" aria-expanded="false" hidden>
                 <span class="cell-label">Return</span>
-                <span class="cell-value" id="return-summary">Add date</span>
-                <span class="cell-value when-time" id="return-time-summary" hidden></span>
+                <span class="cell-meta">
+                  <span class="cell-value" id="return-summary">Add date</span>
+                  <span class="cell-value when-time" id="return-time-summary" hidden></span>
+                </span>
               </button>
               <button type="button" class="search-cell when-leg when-add-return" id="add-return-trigger" aria-expanded="false">
                 <span class="cell-label">Return</span>
@@ -111,8 +115,10 @@
 
             <button type="button" class="search-cell" id="who-trigger" data-cell="who">
               <span class="cell-label">Who</span>
-              <span class="cell-value" id="who-summary">1 adult</span>
-              <span class="cell-value is-placeholder" id="who-railcards">No railcard</span>
+              <span class="cell-meta">
+                <span class="cell-value" id="who-summary">1 adult</span>
+                <span class="cell-value is-placeholder" id="who-railcards">No railcard</span>
+              </span>
             </button>
 
             <div class="search-rule season-rule" aria-hidden="true"></div>
@@ -140,7 +146,20 @@
           </div>
 
           <div class="search-panel rover-panel" id="rover-panel" hidden>
-            <div class="rover-options" id="rover-options" role="listbox" aria-label="Rover ticket"></div>
+            <header class="panel-sheet-head">
+              <div class="panel-sheet-copy">
+                <p class="panel-sheet-eyebrow">Others</p>
+                <h2 class="panel-sheet-title">Choose a rover</h2>
+              </div>
+              <button type="button" class="panel-sheet-close" data-close-panel aria-label="Close rover picker">
+                <svg viewBox="0 0 32 32" width="18" height="18" aria-hidden="true">
+                  <path d="M6 6l20 20M26 6 6 26" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+                </svg>
+              </button>
+            </header>
+            <div class="panel-sheet-body">
+              <div class="rover-options" id="rover-options" role="listbox" aria-label="Rover ticket"></div>
+            </div>
           </div>
 
           <div class="search-panel when-panel" id="when-panel" hidden>
@@ -152,6 +171,19 @@
             <input id="return-mode" type="hidden" value="Depart" />
             <input id="open-return" type="checkbox" hidden />
 
+            <header class="panel-sheet-head">
+              <div class="panel-sheet-copy">
+                <p class="panel-sheet-eyebrow" id="when-sheet-eyebrow">Outbound</p>
+                <h2 class="panel-sheet-title" id="when-sheet-title">Outbound date/time</h2>
+              </div>
+              <button type="button" class="panel-sheet-close" data-close-panel aria-label="Close date and time picker">
+                <svg viewBox="0 0 32 32" width="18" height="18" aria-hidden="true">
+                  <path d="M6 6l20 20M26 6 6 26" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+                </svg>
+              </button>
+            </header>
+
+            <div class="panel-sheet-body">
             <div class="trip-type pill-switch" id="trip-type" role="radiogroup" aria-label="Journey type">
               <button type="button" id="trip-single" aria-selected="false">Single</button>
               <button type="button" id="trip-return" aria-selected="true">Return</button>
@@ -176,7 +208,7 @@
             <div class="time-row">
               <div class="time-block">
                 <div class="time-block-head">
-                  <p class="panel-kicker">Outward</p>
+                  <p class="panel-kicker">Outbound</p>
                   <span class="time-block-date" id="outward-date-label"></span>
                 </div>
                 <div class="time-pickers">
@@ -227,14 +259,27 @@
                 <p class="when-hint" id="when-hint" hidden>Select a return date on the calendar</p>
               </div>
             </div>
+            </div>
 
-            <div class="when-done-row">
+            <div class="when-done-row panel-sheet-foot">
               <button type="button" class="when-remove-return" id="when-remove-return" hidden>Remove return</button>
               <button type="button" class="when-done" id="when-done">Done</button>
             </div>
           </div>
 
           <div class="search-panel who-panel" id="who-panel" hidden>
+            <header class="panel-sheet-head">
+              <div class="panel-sheet-copy">
+                <p class="panel-sheet-eyebrow">Travellers</p>
+                <h2 class="panel-sheet-title">Who’s going?</h2>
+              </div>
+              <button type="button" class="panel-sheet-close" data-close-panel aria-label="Close travellers picker">
+                <svg viewBox="0 0 32 32" width="18" height="18" aria-hidden="true">
+                  <path d="M6 6l20 20M26 6 6 26" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+                </svg>
+              </button>
+            </header>
+            <div class="panel-sheet-body">
             <div class="guest-row">
               <div>
                 <p class="guest-title">Adults</p>
@@ -273,9 +318,25 @@
               <div id="railcard-list" class="railcard-list"></div>
               <button type="button" id="add-railcard" class="text-link add-railcard">Add</button>
             </div>
+            </div>
+            <div class="panel-sheet-foot">
+              <button type="button" class="when-done" data-close-panel>Done</button>
+            </div>
           </div>
 
           <div class="search-panel when-panel" id="season-start-panel" hidden>
+            <header class="panel-sheet-head">
+              <div class="panel-sheet-copy">
+                <p class="panel-sheet-eyebrow">Season</p>
+                <h2 class="panel-sheet-title">Starting date</h2>
+              </div>
+              <button type="button" class="panel-sheet-close" data-close-panel aria-label="Close starting date picker">
+                <svg viewBox="0 0 32 32" width="18" height="18" aria-hidden="true">
+                  <path d="M6 6l20 20M26 6 6 26" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+                </svg>
+              </button>
+            </header>
+            <div class="panel-sheet-body">
             <input id="season-start" type="hidden" />
             <div class="calendar-shell">
               <div class="calendar-nav">
@@ -291,9 +352,22 @@
                 <div class="calendar-grid" data-cal-grid-next></div>
               </div>
             </div>
+            </div>
           </div>
 
           <div class="search-panel when-panel" id="season-until-panel" hidden>
+            <header class="panel-sheet-head">
+              <div class="panel-sheet-copy">
+                <p class="panel-sheet-eyebrow">Season</p>
+                <h2 class="panel-sheet-title">Until date</h2>
+              </div>
+              <button type="button" class="panel-sheet-close" data-close-panel aria-label="Close until date picker">
+                <svg viewBox="0 0 32 32" width="18" height="18" aria-hidden="true">
+                  <path d="M6 6l20 20M26 6 6 26" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+                </svg>
+              </button>
+            </header>
+            <div class="panel-sheet-body">
             <input id="season-until" type="hidden" />
             <div class="calendar-shell">
               <div class="calendar-nav">
@@ -309,10 +383,22 @@
                 <div class="calendar-grid" data-cal-grid-next></div>
               </div>
             </div>
+            </div>
           </div>
 
           <div class="search-panel who-panel" id="season-who-panel" hidden>
-            <p class="guest-title">Passenger</p>
+            <header class="panel-sheet-head">
+              <div class="panel-sheet-copy">
+                <p class="panel-sheet-eyebrow">Season</p>
+                <h2 class="panel-sheet-title">Passenger</h2>
+              </div>
+              <button type="button" class="panel-sheet-close" data-close-panel aria-label="Close passenger picker">
+                <svg viewBox="0 0 32 32" width="18" height="18" aria-hidden="true">
+                  <path d="M6 6l20 20M26 6 6 26" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+                </svg>
+              </button>
+            </header>
+            <div class="panel-sheet-body">
             <p class="guest-sub">Season tickets are sold for one traveller. Choose adult or child.</p>
             <div class="season-passenger pill-switch" role="radiogroup" aria-label="Passenger type">
               <button type="button" id="season-adult" aria-selected="true">Adult</button>
@@ -324,6 +410,10 @@
               16-17 Saver
             </label>
             <p class="season-railcard-hint">The 16-17 Saver is the only railcard that can be used with a season ticket.</p>
+            </div>
+            <div class="panel-sheet-foot">
+              <button type="button" class="when-done" data-close-panel>Done</button>
+            </div>
           </div>
           </div>
 
@@ -391,6 +481,18 @@
           </div>
 
           <div class="search-panel filter-panel" id="route-panel" hidden>
+            <header class="panel-sheet-head">
+              <div class="panel-sheet-copy">
+                <p class="panel-sheet-eyebrow">Route options</p>
+                <h2 class="panel-sheet-title">Via or avoid</h2>
+              </div>
+              <button type="button" class="panel-sheet-close" data-close-panel aria-label="Close via or avoid">
+                <svg viewBox="0 0 32 32" width="18" height="18" aria-hidden="true">
+                  <path d="M6 6l20 20M26 6 6 26" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+                </svg>
+              </button>
+            </header>
+            <div class="panel-sheet-body">
             <div class="route-mode pill-switch" role="tablist" aria-label="Via or avoid">
               <button type="button" class="route-mode-btn" id="route-mode-via" role="tab" aria-selected="true">Via</button>
               <button type="button" class="route-mode-btn" id="route-mode-avoid" role="tab" aria-selected="false">Avoid</button>
@@ -400,7 +502,7 @@
               <input
                 id="via"
                 type="text"
-                placeholder="Search stations"
+                placeholder="Choose a station"
                 spellcheck="false"
                 aria-autocomplete="list"
                 aria-controls="via-suggestions"
@@ -412,16 +514,32 @@
               <input
                 id="avoid"
                 type="text"
-                placeholder="Search stations"
+                placeholder="Choose a station"
                 spellcheck="false"
                 aria-autocomplete="list"
                 aria-controls="avoid-suggestions"
               />
               <input id="avoid-nlc" type="hidden" name="avoid" />
             </div>
+            </div>
+            <div class="panel-sheet-foot">
+              <button type="button" class="when-done" data-close-panel>Done</button>
+            </div>
           </div>
 
           <div class="search-panel filter-panel" id="discount-panel" hidden>
+            <header class="panel-sheet-head">
+              <div class="panel-sheet-copy">
+                <p class="panel-sheet-eyebrow">Offers</p>
+                <h2 class="panel-sheet-title">Discount code</h2>
+              </div>
+              <button type="button" class="panel-sheet-close" data-close-panel aria-label="Close discount code">
+                <svg viewBox="0 0 32 32" width="18" height="18" aria-hidden="true">
+                  <path d="M6 6l20 20M26 6 6 26" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+                </svg>
+              </button>
+            </header>
+            <div class="panel-sheet-body">
             <label for="discount-code">Discount code</label>
             <div class="discount-row">
               <input
@@ -435,6 +553,10 @@
               <button type="button" class="discount-apply" id="discount-apply">Apply</button>
             </div>
             <p class="discount-status" id="discount-status" hidden></p>
+            </div>
+            <div class="panel-sheet-foot">
+              <button type="button" class="when-done" data-close-panel>Done</button>
+            </div>
           </div>
         </form>
       </section>
@@ -443,28 +565,6 @@
       <section id="results" class="results" hidden></section>
     </main>
 
-    <dialog id="journey-dialog" class="journey-dialog">
-      <div class="dialog-header">
-        <button type="button" id="close-journey" class="icon-close" aria-label="Close">
-          <svg viewBox="0 0 32 32" width="16" height="16" aria-hidden="true">
-            <path
-              d="M6 6l20 20M26 6 6 26"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="3"
-              stroke-linecap="round"
-            />
-          </svg>
-        </button>
-        <div class="view-switch pill-switch" role="tablist" aria-label="Journey detail view">
-          <button type="button" id="view-overview" role="tab" aria-selected="true">Overview</button>
-          <button type="button" id="view-json" role="tab" aria-selected="false">JSON</button>
-        </div>
-        <span class="header-spacer" aria-hidden="true"></span>
-      </div>
-      <div id="journey-overview" class="dialog-body"></div>
-      <pre id="journey-json-body" class="dialog-body json-body" hidden></pre>
-    </dialog>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

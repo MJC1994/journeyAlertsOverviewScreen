@@ -1,12 +1,10 @@
+import { journeyPlanPayload, planJourneys } from "./api.js";
 import { attachStationPicker } from "./station-picker.js";
 import { extractJourneys, renderJourneyCard } from "./journey-card.js";
-import { collectRouteFares, countFares, renderFareBoard } from "./fares-board.js";
 import { collectSeasonTickets, countSeasonTickets, renderSeasonBoard } from "./season-board.js";
 import { renderRoverBoard } from "./rover-board.js";
-import { renderJourneyOverview } from "./journey-detail.js";
 import { attachPassengerControls, railcardNames } from "./passengers.js";
 import { attachSearchChrome } from "./search-ui.js";
-import { attachPillSwitch } from "./pill-switch.js";
 import { snapToQuarter } from "./when-picker.js";
 import { stationSearch } from "fuzzy-stations";
 
@@ -34,20 +32,13 @@ const railcardList = document.getElementById("railcard-list");
 const addRailcardButton = document.getElementById("add-railcard");
 const statusEl = document.getElementById("status");
 const resultsEl = document.getElementById("results");
-const jsonDialog = document.getElementById("journey-dialog");
-const jsonBody = document.getElementById("journey-json-body");
-const overviewEl = document.getElementById("journey-overview");
-const closeJson = document.getElementById("close-journey");
-const overviewTab = document.getElementById("view-overview");
-const jsonTab = document.getElementById("view-json");
-const viewPills = attachPillSwitch(document.querySelector(".view-switch"));
 
 let journeyGroups = { outward: [], inbound: [] };
 let lastSeasonData = null;
 let lastSeasonQuery = null;
 
-attachStationPicker(originInput, originCrs, { initialCrs: "LBG" });
-attachStationPicker(destinationInput, destinationCrs, { initialCrs: "KNG" });
+attachStationPicker(originInput, originCrs);
+attachStationPicker(destinationInput, destinationCrs);
 attachStationPicker(viaInput, viaNlc);
 attachStationPicker(avoidInput, avoidNlc);
 const passengers = attachPassengerControls({
@@ -156,10 +147,36 @@ form.addEventListener("submit", async (event) => {
     return;
   }
 
+  const { adults, children } = passengers.passengerCounts();
+  const railcards = passengers.selectedCodes();
+  const payload = journeyPlanPayload({
+    origin: originCrs.value,
+    destination: destinationCrs.value,
+    outward: outbound,
+    inbound,
+    openReturn,
+    adults,
+    children,
+    railcards,
+    via: viaNlc.value ? [viaNlc.value] : [],
+    avoid: avoidNlc.value ? [avoidNlc.value] : [],
+  });
+
   searchUi.closePanels();
   page.classList.remove("has-results");
   resultsEl.hidden = true;
-  setStatus(DEMO_SEARCH_MESSAGE, true);
+  resultsEl.innerHTML = "";
+  setStatus("Searching journeys…");
+
+  try {
+    const data = await planJourneys(payload);
+    setStatus("");
+    renderResults(data);
+  } catch (error) {
+    page.classList.remove("has-results");
+    resultsEl.hidden = true;
+    setStatus(error.message || "Journey search failed.", true);
+  }
 });
 
 async function searchSeasonTickets() {
@@ -250,33 +267,18 @@ function setStatus(message, isError = false) {
   statusEl.classList.toggle("error", isError);
 }
 
-function renderResults(data, query) {
+function renderResults(data) {
   journeyGroups = extractJourneys(data);
   page.classList.add("has-results");
-  if (!journeyGroups.outward.length && !journeyGroups.inbound.length) {
-    renderRaw(data);
-    return;
-  }
-
   resultsEl.hidden = false;
-  if (query.resultsView === "tickets") {
-    const board = collectRouteFares(journeyGroups);
-    const count = countFares(board);
-    resultsEl.innerHTML = [
-      renderResultsIntro(query, {
-        heading: count
-          ? `${count} ${count === 1 ? "fare" : "fares"} to ${destinationLabel()}`
-          : `No fares found to ${destinationLabel()}`,
-      }),
-      count ? renderFareBoard(board) : `<p class="results-empty">No tickets were returned for this search.</p>`,
-    ].join("");
+  if (!journeyGroups.outward.length && !journeyGroups.inbound.length) {
+    resultsEl.innerHTML = `<p class="results-empty">No journeys found for this search.</p>`;
     return;
   }
 
   resultsEl.innerHTML = [
-    renderResultsIntro(query),
-    renderJourneyGroup("Outward", journeyGroups.outward, "outward"),
-    renderJourneyGroup("Return", journeyGroups.inbound, "inbound"),
+    renderJourneyGroup("Outward", journeyGroups.outward),
+    renderJourneyGroup("Return", journeyGroups.inbound),
   ].join("");
 }
 
@@ -316,51 +318,12 @@ function escapeText(value) {
     .replaceAll('"', "&quot;");
 }
 
-function renderJourneyGroup(title, list, direction) {
+function renderJourneyGroup(title, list) {
   if (!list.length) return "";
   return `<section class="journey-group">
     <h2>${title}</h2>
-    <div class="journey-list">${list.map((journey, index) => renderJourneyCard(journey, index, direction)).join("")}</div>
+    <div class="journey-list">${list.map((journey) => renderJourneyCard(journey)).join("")}</div>
   </section>`;
-}
-
-resultsEl.addEventListener("click", (event) => {
-  const card = event.target.closest(".journey-card");
-  if (!card) return;
-  const direction = card.dataset.direction || "outward";
-  const journey = journeyGroups[direction]?.[Number(card.dataset.index)];
-  if (!journey) return;
-  openJourney(journey);
-});
-
-async function openJourney(journey) {
-  overviewEl.innerHTML = renderJourneyOverview(journey, { services: {} });
-  jsonBody.textContent = JSON.stringify({ journey, services: {} }, null, 2);
-  setDialogView("overview");
-  jsonDialog.showModal();
-  requestAnimationFrame(() => viewPills.refresh({ animate: false }));
-}
-
-overviewTab.addEventListener("click", () => setDialogView("overview"));
-jsonTab.addEventListener("click", () => setDialogView("json"));
-closeJson.addEventListener("click", () => jsonDialog.close());
-jsonDialog.addEventListener("click", (event) => {
-  if (event.target === jsonDialog) jsonDialog.close();
-});
-
-function setDialogView(view) {
-  const overview = view === "overview";
-  overviewEl.hidden = !overview;
-  jsonBody.hidden = overview;
-  overviewTab.setAttribute("aria-selected", String(overview));
-  jsonTab.setAttribute("aria-selected", String(!overview));
-}
-
-function renderRaw(data) {
-  resultsEl.hidden = false;
-  const pre = document.createElement("pre");
-  pre.textContent = typeof data === "string" ? data : JSON.stringify(data, null, 2);
-  resultsEl.replaceChildren(pre);
 }
 
 function formatDate(date) {

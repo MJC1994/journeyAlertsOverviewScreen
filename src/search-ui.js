@@ -124,14 +124,122 @@ export function attachSearchChrome({
   function closePanels(except) {
     for (const [trigger, panel] of panels) {
       if (panel === except) continue;
+      if (isSheetPanel(panel) && !panel.hidden) {
+        collapsePanelSheet(panel);
+        continue;
+      }
       panel.hidden = true;
       clearTrigger(trigger);
     }
     if (except !== whenPanel) {
       whenTriggers.forEach(clearTrigger);
     }
-    searchBar.classList.remove("is-open");
+    if (except !== whenPanel && except !== whoPanel) {
+      searchBar.classList.remove("is-open");
+    }
     syncFilterRow(except);
+  }
+
+  const sheetPanels = new Set([whenPanel, whoPanel]);
+  let sheetAnchor = null;
+  let activeSheetPanel = null;
+
+  function isSheetPanel(panel) {
+    return sheetPanels.has(panel);
+  }
+
+  function prefersReducedMotion() {
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
+
+  function setSheetOrigin(panel, trigger) {
+    const rect = trigger.getBoundingClientRect();
+    panel.style.setProperty("--sheet-t", `${Math.max(0, rect.top)}px`);
+    panel.style.setProperty("--sheet-l", `${Math.max(0, rect.left)}px`);
+    panel.style.setProperty("--sheet-w", `${Math.max(48, rect.width)}px`);
+    panel.style.setProperty("--sheet-h", `${Math.max(48, rect.height)}px`);
+    panel.style.setProperty("--sheet-radius", "28px");
+  }
+
+  function expandPanelSheet(panel, trigger) {
+    if (activeSheetPanel && activeSheetPanel !== panel && !activeSheetPanel.hidden) {
+      activeSheetPanel.hidden = true;
+      activeSheetPanel.classList.remove("panel-sheet", "is-sheet-open");
+    }
+    activeSheetPanel = panel;
+    sheetAnchor = trigger;
+    document.body.classList.add("is-panel-sheet-open");
+    panel.classList.add("panel-sheet");
+    panel.hidden = false;
+    panel.classList.remove("is-sheet-open");
+    setSheetOrigin(panel, trigger);
+
+    if (prefersReducedMotion()) {
+      panel.classList.add("is-sheet-open");
+      return;
+    }
+
+    void panel.offsetWidth;
+    requestAnimationFrame(() => {
+      panel.classList.add("is-sheet-open");
+    });
+  }
+
+  function collapsePanelSheet(panel = activeSheetPanel) {
+    if (!panel) return;
+
+    const clearSheetTriggers = () => {
+      if (panel === whenPanel) whenTriggers.forEach(clearTrigger);
+      else if (panel === whoPanel) clearTrigger(whoTrigger);
+    };
+
+    if (panel.hidden) {
+      clearSheetTriggers();
+      if (activeSheetPanel === panel) {
+        document.body.classList.remove("is-panel-sheet-open");
+        activeSheetPanel = null;
+        sheetAnchor = null;
+      }
+      searchBar.classList.remove("is-open");
+      syncFilterRow(null);
+      return;
+    }
+
+    const fallbackAnchor = panel === whoPanel ? whoTrigger : outboundTrigger;
+    const anchor = sheetAnchor?.isConnected ? sheetAnchor : fallbackAnchor;
+    clearSheetTriggers();
+    searchBar.classList.remove("is-open");
+    syncFilterRow(null);
+    if (activeSheetPanel === panel) {
+      document.body.classList.remove("is-panel-sheet-open");
+    }
+
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      panel.hidden = true;
+      panel.classList.remove("panel-sheet", "is-sheet-open");
+      if (activeSheetPanel === panel) {
+        activeSheetPanel = null;
+        sheetAnchor = null;
+      }
+    };
+
+    if (prefersReducedMotion() || !panel.classList.contains("is-sheet-open")) {
+      finish();
+      return;
+    }
+
+    setSheetOrigin(panel, anchor);
+    panel.classList.remove("is-sheet-open");
+    const onEnd = (event) => {
+      if (event.target !== panel || event.propertyName !== "height") return;
+      panel.removeEventListener("transitionend", onEnd);
+      finish();
+    };
+    panel.addEventListener("transitionend", onEnd);
+    window.setTimeout(finish, 420);
   }
 
   function syncFilterRow(except) {
@@ -182,18 +290,32 @@ export function attachSearchChrome({
       leg === "outbound" ? outboundTrigger : returnTrigger.hidden ? addReturnTrigger : returnTrigger;
     const closing = !whenPanel.hidden && trigger.classList.contains("is-open");
     if (closing) {
-      closePanels(null);
+      collapsePanelSheet(whenPanel);
       return;
     }
     closePanels(whenPanel);
-    whenPanel.hidden = false;
     whenTriggers.forEach(clearTrigger);
     trigger.classList.add("is-active", "is-open");
     trigger.setAttribute("aria-expanded", "true");
     searchBar.classList.add("is-open");
     filterRow.classList.add("is-dimmed");
+    expandPanelSheet(whenPanel, trigger);
     whenPicker.setFocus(leg === "outbound" ? "outbound" : "return");
     requestAnimationFrame(() => tripTypePills.refresh({ animate: false }));
+  }
+
+  function openWho() {
+    const closing = !whoPanel.hidden && whoTrigger.classList.contains("is-open");
+    if (closing) {
+      collapsePanelSheet(whoPanel);
+      return;
+    }
+    closePanels(whoPanel);
+    whoTrigger.classList.add("is-active", "is-open");
+    whoTrigger.setAttribute("aria-expanded", "true");
+    searchBar.classList.add("is-open");
+    filterRow.classList.add("is-dimmed");
+    expandPanelSheet(whoPanel, whoTrigger);
   }
 
   function openPanel(trigger, panel) {
@@ -236,7 +358,7 @@ export function attachSearchChrome({
   outboundTrigger.addEventListener("click", () => openWhen("outbound"));
   returnTrigger.addEventListener("click", () => openWhen("return"));
   addReturnTrigger.addEventListener("click", () => openWhen("return"));
-  whoTrigger.addEventListener("click", () => toggle(whoTrigger, whoPanel));
+  whoTrigger.addEventListener("click", () => openWho());
   roverTrigger.addEventListener("click", () => toggle(roverTrigger, roverPanel));
   seasonStartTrigger.addEventListener("click", () => toggle(seasonStartTrigger, seasonStartPanel));
   seasonUntilTrigger.addEventListener("click", () => toggle(seasonUntilTrigger, seasonUntilPanel));
@@ -291,7 +413,29 @@ export function attachSearchChrome({
   });
   document.getElementById("when-done").addEventListener("click", () => {
     if (whenPicker.focusLeg() === "outbound" && whenPicker.tripType() !== "single") {
-      openWhen("return");
+      // Stay expanded; just move focus to the return leg.
+      const returnBtn = returnTrigger.hidden ? addReturnTrigger : returnTrigger;
+      sheetAnchor = returnBtn;
+      whenTriggers.forEach(clearTrigger);
+      returnBtn.classList.add("is-active", "is-open");
+      returnBtn.setAttribute("aria-expanded", "true");
+      whenPicker.setFocus("return");
+      requestAnimationFrame(() => tripTypePills.refresh({ animate: false }));
+      return;
+    }
+    collapsePanelSheet(whenPanel);
+  });
+
+  form.addEventListener("click", (event) => {
+    const closer = event.target.closest("[data-close-panel]");
+    if (!closer || closer.id === "when-done") return;
+    event.preventDefault();
+    if (!whenPanel.hidden && whenPanel.contains(closer)) {
+      collapsePanelSheet(whenPanel);
+      return;
+    }
+    if (!whoPanel.hidden && whoPanel.contains(closer)) {
+      collapsePanelSheet(whoPanel);
       return;
     }
     closePanels(null);

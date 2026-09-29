@@ -1,56 +1,59 @@
-import { crsCode, durationLabel, escapeHtml, formatClock, stationName, timesDiffer } from "./format.js";
+import { clockStamp, durationLabel, escapeHtml, renderClock, resolveClock, stationName } from "./format.js";
 import { normalizeJpResponse } from "./jp-journey.js";
+import { journeyHref } from "./journey-url.js";
 
-export function renderJourneyCard(journey, index = 0, direction = "outward") {
+export function renderJourneyCard(journey) {
   const origin = stationName(journey.origin);
   const destination = stationName(journey.destination);
-  const std = journey.scheduledTime?.departure;
-  const sta = journey.scheduledTime?.arrival;
+  const depart = resolveClock({
+    scheduled: journey.scheduledTime?.departure,
+    estimated: journey.realTime?.departure,
+  });
+  const arrive = resolveClock({
+    scheduled: journey.scheduledTime?.arrival,
+    estimated: journey.realTime?.arrival,
+  });
+  const duration = durationLabel(clockStamp(depart), clockStamp(arrive));
   const legs = journey.journeySequence?.legs ?? [];
-  const firstLeg = legs.find((leg) => leg.mode === "TRAIN") || legs[0];
-  const lastLeg = [...legs].reverse().find((leg) => leg.mode === "TRAIN") || legs[legs.length - 1];
-  const ets = journey.realTime?.departure || firstLeg?.realTime?.departure;
-  const eta = journey.realTime?.arrival || lastLeg?.realTime?.arrival;
-  const showEstimated = Boolean(eta) && (timesDiffer(eta, sta) || timesDiffer(ets, std));
-  const duration = durationLabel(std, sta);
   const trainCount = legs.filter((leg) => leg.mode === "TRAIN").length;
   const changeCount = Number.isFinite(journey.changes) ? journey.changes : Math.max(0, trainCount - 1);
   const changes = changeCount === 0 ? "Direct" : `${changeCount} ${changeCount === 1 ? "change" : "changes"}`;
+  const href = journeyHref(journey);
+  const tag = href ? "a" : "div";
+  const attrs = href
+    ? `href="${escapeHtml(href)}"`
+    : `role="group"`;
+  const onTime = Boolean(depart.scheduledClock || arrive.scheduledClock) && !depart.late && !arrive.late;
 
-  const estimatedRow = showEstimated
-    ? `<div class="estimated">${escapeHtml(formatClock(ets) || "—")} → ${escapeHtml(formatClock(eta))}</div>`
-    : "";
-
-  const originCode = (crsCode(journey.origin) || origin).slice(0, 3).toUpperCase();
-  const destinationCode = (crsCode(journey.destination) || destination).slice(0, 3).toUpperCase();
-
-  return `<button type="button" class="journey-card" data-index="${index}" data-direction="${escapeHtml(direction)}">
-    <div class="journey-cover" aria-hidden="true">
-      <span class="cover-code">${escapeHtml(originCode)}</span>
-      <span class="cover-line"></span>
-      <span class="cover-code">${escapeHtml(destinationCode)}</span>
-    </div>
-    <div class="journey-card-body">
-      <div class="journey-times">
-        <div class="${showEstimated ? "scheduled replaced" : "scheduled"}">${escapeHtml(formatClock(std))} – ${escapeHtml(formatClock(sta))}</div>
-        ${estimatedRow}
-      </div>
-      <div class="journey-od">${escapeHtml(origin)} to ${escapeHtml(destination)}</div>
-      <div class="journey-stats">
-        <span>${escapeHtml(changes)}</span>
-      </div>
-    </div>
-    <div class="journey-card-meta">
-      <span>${escapeHtml(duration || "")}</span>
-      <span class="journey-card-arrow">→</span>
-    </div>
-  </button>`;
+  return `<${tag} class="journey-row" ${attrs}>
+    <span class="journey-row-route">
+      <span class="journey-row-station">${escapeHtml(origin)}</span>
+      <span class="journey-row-arrow" aria-hidden="true">→</span>
+      <span class="journey-row-station">${escapeHtml(destination)}</span>
+    </span>
+    <span class="journey-row-times">
+      ${renderClock(depart)}
+      <span class="journey-row-arrow" aria-hidden="true">–</span>
+      ${renderClock(arrive)}
+    </span>
+    ${onTime ? `<span class="clock-note">On time</span>` : ""}
+    <span class="journey-row-meta">
+      <span>${escapeHtml(changes)}</span>
+      ${duration ? `<span>${escapeHtml(duration)}</span>` : ""}
+    </span>
+  </${tag}>`;
 }
 
 export function extractJourneys(data) {
   if (!data || typeof data !== "object") return { outward: [], inbound: [] };
   const fromJp = normalizeJpResponse(data);
   if (fromJp.outward.length || fromJp.inbound.length) return fromJp;
+  if (Array.isArray(data.outward) || Array.isArray(data.inbound)) {
+    return {
+      outward: data.outward ?? [],
+      inbound: data.inbound ?? [],
+    };
+  }
   const fallback = Array.isArray(data.outwardJourney)
     ? data.outwardJourney
     : Array.isArray(data.journeys)
@@ -58,5 +61,5 @@ export function extractJourneys(data) {
       : Array.isArray(data.results)
         ? data.results
         : [];
-  return { outward: fallback, inbound: [] };
+  return { outward: fallback, inbound: data.inboundJourney ?? [] };
 }

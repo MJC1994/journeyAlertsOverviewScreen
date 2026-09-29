@@ -7,6 +7,93 @@ export function formatClock(value) {
   return match ? match[1] : text;
 }
 
+export function parseTimeMs(value) {
+  if (value == null || value === "") return NaN;
+  if (typeof value === "number") return Number.isFinite(value) ? value : NaN;
+  const text = String(value).trim();
+  if (!text || /^(on time|delayed|cancelled|no report)$/i.test(text)) return NaN;
+  const parsed = Date.parse(text);
+  if (Number.isFinite(parsed)) return parsed;
+  const match = text.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return NaN;
+  const now = new Date();
+  now.setHours(Number(match[1]), Number(match[2]), 0, 0);
+  return now.getTime();
+}
+
+export function isLaterTime(live, scheduled) {
+  const liveMin = minuteStamp(live);
+  const scheduledMin = minuteStamp(scheduled);
+  if (Number.isFinite(liveMin) && Number.isFinite(scheduledMin)) return liveMin > scheduledMin;
+  const liveClock = formatClock(live);
+  const scheduledClock = formatClock(scheduled);
+  return Boolean(liveClock && scheduledClock && liveClock !== scheduledClock && liveClock > scheduledClock);
+}
+
+export function resolveClock({ scheduled, estimated, actual, now = Date.now() } = {}) {
+  const scheduledMs = parseTimeMs(scheduled);
+  const hasActual = Number.isFinite(parseTimeMs(actual));
+  const past = hasActual || (Number.isFinite(scheduledMs) && scheduledMs < now);
+  const live = past ? actual || estimated || null : estimated || actual || null;
+  const scheduledClock = formatClock(scheduled);
+  const liveClock = formatClock(live);
+  const late = Boolean(scheduledClock && liveClock && isLaterTime(live, scheduled));
+  return {
+    scheduled: scheduled || null,
+    live: live || null,
+    scheduledClock,
+    liveClock,
+    late,
+    onTime: Boolean(scheduledClock) && !late,
+  };
+}
+
+export function resolveStopClock(stop, kind, now) {
+  if (kind === "arrive") {
+    return resolveClock({
+      scheduled: stop?.sta,
+      estimated: stop?.eta,
+      actual: stop?.ata,
+      now,
+    });
+  }
+  return resolveClock({
+    scheduled: stop?.std,
+    estimated: stop?.etd,
+    actual: stop?.atd,
+    now,
+  });
+}
+
+export function clockStamp(clock) {
+  if (!clock) return null;
+  return clock.late ? clock.live : clock.scheduled || clock.live || null;
+}
+
+export function renderClock(clock, { empty = "—" } = {}) {
+  if (!clock?.scheduledClock && !clock?.liveClock) {
+    return empty
+      ? `<span class="clock"><span class="clock-scheduled">${escapeHtml(empty)}</span></span>`
+      : "";
+  }
+  if (clock.late && clock.scheduledClock) {
+    return `<span class="clock is-late">
+      <time class="clock-scheduled is-replaced" datetime="${escapeHtml(String(clock.scheduled))}">${escapeHtml(clock.scheduledClock)}</time>
+      <time class="clock-live" datetime="${escapeHtml(String(clock.live))}">${escapeHtml(clock.liveClock)}</time>
+    </span>`;
+  }
+  const stamp = clock.scheduled || clock.live;
+  const label = clock.scheduledClock || clock.liveClock;
+  return `<span class="clock">
+    <time class="clock-scheduled" datetime="${escapeHtml(String(stamp))}">${escapeHtml(label)}</time>
+  </span>`;
+}
+
+function minuteStamp(value) {
+  const ms = parseTimeMs(value);
+  return Number.isFinite(ms) ? Math.floor(ms / 60000) : NaN;
+}
+
 export function durationLabel(depart, arrive) {
   const start = Date.parse(depart);
   const end = Date.parse(arrive);

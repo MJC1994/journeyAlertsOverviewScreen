@@ -31,6 +31,8 @@ export function attachWhenPicker({
   const tripReturn = panel.querySelector("#trip-return");
   const tripOpen = panel.querySelector("#trip-open");
   const removeReturnBtn = panel.querySelector("#when-remove-return");
+  const sheetEyebrow = panel.querySelector("#when-sheet-eyebrow");
+  const sheetTitle = panel.querySelector("#when-sheet-title");
 
   let viewMonth = monthStart(parseDate(dateInput.value) || new Date());
   let oneWay = false;
@@ -292,6 +294,21 @@ export function attachWhenPicker({
     openReturnNote.hidden = !openReturn || !editingReturn;
     hint.hidden = !editingReturn || oneWay || hasReturn || openReturn;
     if (removeReturnBtn) removeReturnBtn.hidden = !editingReturn || oneWay;
+    if (sheetEyebrow && sheetTitle) {
+      if (editingReturn) {
+        sheetEyebrow.textContent = "Returning";
+        sheetTitle.textContent = openReturn
+          ? formatWeekdayDate(returnDateInput.value || dateInput.value) || "Open return"
+          : [formatWeekdayDate(returnDateInput.value), formatDisplayTime(returnTimeInput.value)]
+              .filter(Boolean)
+              .join(" · ") || "Choose date/time";
+      } else {
+        sheetEyebrow.textContent = "Outbound";
+        sheetTitle.textContent =
+          [formatWeekdayDate(dateInput.value), formatDisplayTime(timeInput.value)].filter(Boolean).join(" · ") ||
+          "Choose date/time";
+      }
+    }
     panel.classList.toggle("is-one-way", oneWay);
     panel.classList.toggle("is-open-return", openReturn);
     panel.classList.toggle("is-focus-return", editingReturn);
