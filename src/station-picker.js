@@ -470,7 +470,7 @@ function afterPairSelect(entry) {
   if (!origin || !destination) return;
   const both = Boolean(origin.hidden.value && destination.hidden.value);
 
-  if (pairStartedOn === origin && entry === origin) {
+  if (pairStartedOn === origin && entry === origin && !destination.hidden.value) {
     focusPairField(destination);
     return;
   }

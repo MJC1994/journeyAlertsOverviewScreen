@@ -728,9 +728,14 @@ h1 {
   background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: 1.15rem;
-  font-weight: 700;
+  font-size: 1.12rem;
+  font-weight: 600;
   letter-spacing: -0.02em;
+}
+
+.search-cell input[type="text"]::placeholder,
+.station-sheet .station-sheet-query::placeholder {
+  font-weight: 500;
 }
 
 .search-cell input[type="text"]::placeholder,
@@ -2168,8 +2173,8 @@ body.is-panel-sheet-open .search-shell {
   box-shadow: none;
   color: var(--text);
   font: inherit;
-  font-size: 1.15rem;
-  font-weight: 700;
+  font-size: 1.12rem;
+  font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.25;
   caret-color: var(--text);
@@ -2243,8 +2248,8 @@ body.is-panel-sheet-open .search-shell {
 .station-sheet-standin {
   display: block;
   overflow: hidden;
-  font-size: 1.15rem;
-  font-weight: 700;
+  font-size: 1.12rem;
+  font-weight: 600;
   letter-spacing: -0.02em;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2252,6 +2257,7 @@ body.is-panel-sheet-open .search-shell {
 
 .station-sheet-standin.is-placeholder {
   color: var(--muted);
+  font-weight: 500;
 }
 
 .station-suggestions li {
