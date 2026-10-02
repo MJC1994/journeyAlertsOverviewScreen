@@ -5,6 +5,7 @@ import { collectSeasonTickets, countSeasonTickets, renderSeasonBoard } from "./s
 import { renderRoverBoard } from "./rover-board.js";
 import { attachPassengerControls, railcardNames } from "./passengers.js";
 import { attachSearchChrome } from "./search-ui.js";
+import { attachScrollLock } from "./scroll-lock.js";
 import { snapToQuarter } from "./when-picker.js";
 import { stationSearch } from "fuzzy-stations";
 
@@ -36,9 +37,11 @@ const resultsEl = document.getElementById("results");
 let journeyGroups = { outward: [], inbound: [] };
 let lastSeasonData = null;
 let lastSeasonQuery = null;
+let searchedStadium = "";
 
-attachStationPicker(originInput, originCrs);
-attachStationPicker(destinationInput, destinationCrs);
+attachScrollLock();
+attachStationPicker(originInput, originCrs, { sheet: true });
+attachStationPicker(destinationInput, destinationCrs, { stadiums: true, sheet: true });
 attachStationPicker(viaInput, viaNlc);
 attachStationPicker(avoidInput, avoidNlc);
 const passengers = attachPassengerControls({
@@ -68,9 +71,10 @@ const searchUi = attachSearchChrome({
 const now = new Date();
 dateInput.value = formatDate(now);
 timeInput.value = snapToQuarter(formatTime(now));
-const returnAt = new Date(now.getTime() + 4 * 60 * 60 * 1000);
-returnDateInput.value = formatDate(returnAt);
-returnTimeInput.value = snapToQuarter(formatTime(returnAt));
+dateInput.dataset.defaultValue = dateInput.value;
+timeInput.dataset.defaultValue = timeInput.value;
+returnDateInput.value = "";
+returnTimeInput.value = "";
 
 dateInput.addEventListener("change", keepReturnAfterOutward);
 timeInput.addEventListener("change", keepReturnAfterOutward);
@@ -122,16 +126,15 @@ form.addEventListener("submit", async (event) => {
     return;
   }
 
-  const hasReturnDate = Boolean(returnDateInput.value);
-  const hasReturnTime = Boolean(returnTimeInput.value);
-  const openReturn = Boolean(document.getElementById("open-return")?.checked);
-  if (!openReturn && hasReturnDate !== hasReturnTime) {
-    setStatus("Choose both a return date and time, or leave both blank for a one-way search.", true);
-    return;
-  }
+  const single = searchUi.tripType?.() === "single" || !returnDateInput.value;
+  const openReturn = !single && Boolean(document.getElementById("open-return")?.checked);
 
   let inbound = null;
-  if (!openReturn && hasReturnDate && hasReturnTime) {
+  if (!single && !openReturn) {
+    if (!returnTimeInput.value) {
+      setStatus("Choose a return time, or switch to Single for a one-way search.", true);
+      return;
+    }
     inbound = searchWindow(returnDateInput.value, returnTimeInput.value, returnModeInput.value);
     const outwardStamp = `${dateInput.value}T${timeInput.value}:00`;
     const returnStamp = `${returnDateInput.value}T${returnTimeInput.value}:00`;
@@ -171,6 +174,7 @@ form.addEventListener("submit", async (event) => {
   try {
     const data = await planJourneys(payload);
     setStatus("");
+    searchedStadium = destinationInput.dataset.stadium || "";
     renderResults(data);
   } catch (error) {
     page.classList.remove("has-results");
@@ -322,7 +326,7 @@ function renderJourneyGroup(title, list) {
   if (!list.length) return "";
   return `<section class="journey-group">
     <h2>${title}</h2>
-    <div class="journey-list">${list.map((journey) => renderJourneyCard(journey)).join("")}</div>
+    <div class="journey-list">${list.map((journey) => renderJourneyCard(journey, { stadium: searchedStadium })).join("")}</div>
   </section>`;
 }
 

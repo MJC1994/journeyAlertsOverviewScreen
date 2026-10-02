@@ -52,9 +52,24 @@ const jpHeaders = {
 const boardsHeaders = {
   Origin: "https://widgets.otrl.io",
   Referer: "https://widgets.otrl.io/",
+  Accept: "application/json, text/plain, */*",
+  "Accept-Language": "en-GB,en-US;q=0.9,en;q=0.8",
   "User-Agent":
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
 };
+
+// TfL Journey Planner. Set TFL_APP_KEY in your shell to use a registered key in dev.
+function tflProxy() {
+  const key = process.env.TFL_APP_KEY;
+  return {
+    target: "https://api.tfl.gov.uk",
+    changeOrigin: true,
+    rewrite: (path) => {
+      const next = path.replace(/^\/tfl/, "");
+      return key ? `${next}${next.includes("?") ? "&" : "?"}app_key=${encodeURIComponent(key)}` : next;
+    },
+  };
+}
 
 export default defineConfig({
   plugins: [rewriteJourneyPage()],
@@ -62,12 +77,14 @@ export default defineConfig({
     proxy: {
       "/jp": southeasternProxy(jpHeaders),
       "/departure-boards": southeasternProxy(boardsHeaders),
+      "/tfl": tflProxy(),
     },
   },
   preview: {
     proxy: {
       "/jp": southeasternProxy(jpHeaders),
       "/departure-boards": southeasternProxy(boardsHeaders),
+      "/tfl": tflProxy(),
     },
   },
   build: {

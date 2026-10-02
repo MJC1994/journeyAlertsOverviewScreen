@@ -2,10 +2,11 @@ import { crsCode } from "./format.js";
 
 const JOURNEY_ROOT = "/journey";
 
-export function journeyHref(journey) {
+export function journeyHref(journey, { stadium = "" } = {}) {
   const legs = legsFromJourney(journey);
   if (!legs.length) return null;
-  return `${JOURNEY_ROOT}/${legs.map(encodeLegSegment).join("/")}`;
+  const query = stadium ? `?${new URLSearchParams({ stadium })}` : "";
+  return `${JOURNEY_ROOT}/${legs.map(encodeLegSegment).join("/")}${query}`;
 }
 
 export function legsFromJourney(journey) {

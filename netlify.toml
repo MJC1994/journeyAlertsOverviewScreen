@@ -9,8 +9,14 @@
   force = true
 
 [[redirects]]
-  from = "/departure-boards/service/:rid"
-  to = "/.netlify/functions/departure-boards?rid=:rid"
+  from = "/departure-boards/service/*"
+  to = "/.netlify/functions/departure-boards/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/tfl/*"
+  to = "/.netlify/functions/tfl-journey/:splat"
   status = 200
   force = true
 

@@ -1,4 +1,4 @@
-import { attachWhenPicker } from "./when-picker.js";
+import { attachWhenPicker, isDefaultOutbound } from "./when-picker.js";
 import { attachSeasonDatePicker } from "./season-start.js";
 import { attachPillSwitch } from "./pill-switch.js";
 import { railcardNames } from "./passengers.js";
@@ -31,7 +31,9 @@ export function attachSearchChrome({
   const roverProductInput = document.getElementById("rover-product");
   const roverSummary = document.getElementById("rover-summary");
   const outboundTrigger = document.getElementById("outbound-trigger");
+  const returnSlot = document.getElementById("return-slot");
   const returnTrigger = document.getElementById("return-trigger");
+  const returnClear = document.getElementById("return-clear");
   const addReturnTrigger = document.getElementById("add-return-trigger");
   const outboundSummary = document.getElementById("outbound-summary");
   const outboundTime = document.getElementById("outbound-time");
@@ -114,7 +116,6 @@ export function attachSearchChrome({
   const modePills = attachPillSwitch(document.querySelector(".mode-switch"));
   const seasonPassengerPills = attachPillSwitch(document.querySelector(".season-passenger"));
   const routeModePills = attachPillSwitch(document.querySelector(".route-mode"));
-  const tripTypePills = attachPillSwitch(document.querySelector(".trip-type"));
 
   function updateStationLabels() {
     originLabel.textContent = "From";
@@ -145,7 +146,32 @@ export function attachSearchChrome({
   let activeSheetPanel = null;
 
   function isSheetPanel(panel) {
-    return sheetPanels.has(panel);
+    if (panel.classList.contains("panel-sheet")) return true;
+    return sheetPanels.has(panel) && prefersMobileSheet();
+  }
+
+  function clearWhenDropdownPosition() {
+    whenPanel.style.left = "";
+    whenPanel.style.right = "";
+    whenPanel.style.transform = "";
+  }
+
+  function placeWhenDropdown(trigger) {
+    const shell = whenPanel.offsetParent;
+    if (!shell) return;
+    const shellRect = shell.getBoundingClientRect();
+    const anchor = trigger.closest(".when-pair") || trigger;
+    const anchorRect = anchor.getBoundingClientRect();
+    const panelWidth = whenPanel.offsetWidth || Math.min(420, shellRect.width);
+    let left = anchorRect.left - shellRect.left + anchorRect.width / 2 - panelWidth / 2;
+    left = Math.max(0, Math.min(left, Math.max(0, shellRect.width - panelWidth)));
+    whenPanel.style.left = `${left}px`;
+    whenPanel.style.right = "auto";
+    whenPanel.style.transform = "none";
+  }
+
+  function prefersMobileSheet() {
+    return window.matchMedia("(max-width: 860px)").matches;
   }
 
   function prefersReducedMotion() {
@@ -162,24 +188,36 @@ export function attachSearchChrome({
   }
 
   function expandPanelSheet(panel, trigger) {
+    // Measure before the sheet is shown. Reading layout after .panel-sheet is
+    // applied paints the fallback (top/left 0, full viewport) and starts the
+    // transition from the screen edge instead of the tapped control.
+    const rect = trigger.getBoundingClientRect();
+    if (panel === whenPanel) clearWhenDropdownPosition();
     if (activeSheetPanel && activeSheetPanel !== panel && !activeSheetPanel.hidden) {
       activeSheetPanel.hidden = true;
       activeSheetPanel.classList.remove("panel-sheet", "is-sheet-open");
+      activeSheetPanel.style.transition = "";
     }
     activeSheetPanel = panel;
     sheetAnchor = trigger;
     document.body.classList.add("is-panel-sheet-open");
+    panel.style.setProperty("--sheet-t", `${Math.max(0, rect.top)}px`);
+    panel.style.setProperty("--sheet-l", `${Math.max(0, rect.left)}px`);
+    panel.style.setProperty("--sheet-w", `${Math.max(48, rect.width)}px`);
+    panel.style.setProperty("--sheet-h", `${Math.max(48, rect.height)}px`);
+    panel.style.setProperty("--sheet-radius", "28px");
+    panel.style.transition = "none";
     panel.classList.add("panel-sheet");
     panel.hidden = false;
     panel.classList.remove("is-sheet-open");
-    setSheetOrigin(panel, trigger);
+    void panel.offsetWidth;
+    panel.style.transition = "";
 
     if (prefersReducedMotion()) {
       panel.classList.add("is-sheet-open");
       return;
     }
 
-    void panel.offsetWidth;
     requestAnimationFrame(() => {
       panel.classList.add("is-sheet-open");
     });
@@ -191,6 +229,7 @@ export function attachSearchChrome({
     const clearSheetTriggers = () => {
       if (panel === whenPanel) whenTriggers.forEach(clearTrigger);
       else if (panel === whoPanel) clearTrigger(whoTrigger);
+      else if (sheetAnchor) clearTrigger(sheetAnchor);
     };
 
     if (panel.hidden) {
@@ -273,7 +312,6 @@ export function attachSearchChrome({
       requestAnimationFrame(() => routeModePills.refresh({ animate: false }));
     } else if (open && isWhenTrigger(trigger)) {
       whenPicker.refresh();
-      requestAnimationFrame(() => tripTypePills.refresh({ animate: false }));
     } else if (open && trigger === seasonStartTrigger) {
       seasonStartPicker.refresh();
     } else if (open && trigger === seasonUntilTrigger) {
@@ -289,6 +327,24 @@ export function attachSearchChrome({
     const trigger =
       leg === "outbound" ? outboundTrigger : returnTrigger.hidden ? addReturnTrigger : returnTrigger;
     const closing = !whenPanel.hidden && trigger.classList.contains("is-open");
+    if (!prefersMobileSheet()) {
+      if (closing) {
+        closePanels(null);
+        clearWhenDropdownPosition();
+        return;
+      }
+      closePanels(whenPanel);
+      clearWhenDropdownPosition();
+      whenTriggers.forEach(clearTrigger);
+      trigger.classList.add("is-active", "is-open");
+      trigger.setAttribute("aria-expanded", "true");
+      whenPanel.hidden = false;
+      placeWhenDropdown(trigger);
+      searchBar.classList.add("is-open");
+      filterRow.classList.add("is-dimmed");
+      whenPicker.setFocus(leg === "outbound" ? "outbound" : "return");
+      return;
+    }
     if (closing) {
       collapsePanelSheet(whenPanel);
       return;
@@ -301,11 +357,23 @@ export function attachSearchChrome({
     filterRow.classList.add("is-dimmed");
     expandPanelSheet(whenPanel, trigger);
     whenPicker.setFocus(leg === "outbound" ? "outbound" : "return");
-    requestAnimationFrame(() => tripTypePills.refresh({ animate: false }));
   }
 
   function openWho() {
     const closing = !whoPanel.hidden && whoTrigger.classList.contains("is-open");
+    if (!prefersMobileSheet()) {
+      if (closing) {
+        closePanels(null);
+        return;
+      }
+      closePanels(whoPanel);
+      whoTrigger.classList.add("is-active", "is-open");
+      whoTrigger.setAttribute("aria-expanded", "true");
+      whoPanel.hidden = false;
+      searchBar.classList.add("is-open");
+      filterRow.classList.add("is-dimmed");
+      return;
+    }
     if (closing) {
       collapsePanelSheet(whoPanel);
       return;
@@ -320,6 +388,29 @@ export function attachSearchChrome({
 
   function openPanel(trigger, panel) {
     if (panel.hidden) toggle(trigger, panel);
+  }
+
+  function openFilterSheet(trigger, panel) {
+    if (!prefersMobileSheet()) {
+      toggle(trigger, panel);
+      return;
+    }
+    const closing = !panel.hidden && trigger.classList.contains("is-open");
+    if (closing) {
+      collapsePanelSheet(panel);
+      return;
+    }
+    closePanels(panel);
+    trigger.classList.add("is-active", "is-open");
+    chipFor(trigger)?.classList.add("is-open");
+    trigger.setAttribute("aria-expanded", "true");
+    expandPanelSheet(panel, trigger);
+    if (trigger === routeTrigger) {
+      setRouteMode(avoidNlc.value && !viaNlc.value ? "avoid" : "via", { focus: true, preserve: true });
+      requestAnimationFrame(() => routeModePills.refresh({ animate: false }));
+      return;
+    }
+    requestAnimationFrame(() => panel.querySelector("input:not([type=hidden])")?.focus());
   }
 
   function setRouteMode(mode, { focus = false, preserve = false } = {}) {
@@ -358,13 +449,18 @@ export function attachSearchChrome({
   outboundTrigger.addEventListener("click", () => openWhen("outbound"));
   returnTrigger.addEventListener("click", () => openWhen("return"));
   addReturnTrigger.addEventListener("click", () => openWhen("return"));
+  returnClear.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    whenPicker.setTripType("single");
+  });
   whoTrigger.addEventListener("click", () => openWho());
   roverTrigger.addEventListener("click", () => toggle(roverTrigger, roverPanel));
   seasonStartTrigger.addEventListener("click", () => toggle(seasonStartTrigger, seasonStartPanel));
   seasonUntilTrigger.addEventListener("click", () => toggle(seasonUntilTrigger, seasonUntilPanel));
   seasonWhoTrigger.addEventListener("click", () => toggle(seasonWhoTrigger, seasonWhoPanel));
-  routeTrigger.addEventListener("click", () => toggle(routeTrigger, routePanel));
-  discountTrigger.addEventListener("click", () => toggle(discountTrigger, discountPanel));
+  routeTrigger.addEventListener("click", () => openFilterSheet(routeTrigger, routePanel));
+  discountTrigger.addEventListener("click", () => openFilterSheet(discountTrigger, discountPanel));
   viaModeBtn.addEventListener("click", () => setRouteMode("via", { focus: true }));
   avoidModeBtn.addEventListener("click", () => setRouteMode("avoid", { focus: true }));
   ticketsMode.addEventListener("click", () => setSearchMode("tickets"));
@@ -397,7 +493,16 @@ export function attachSearchChrome({
   });
 
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") closePanels(null);
+    if (event.key === "Escape") {
+      closePanels(null);
+      clearWhenDropdownPosition();
+    }
+  });
+
+  window.addEventListener("resize", () => {
+    if (whenPanel.hidden || whenPanel.classList.contains("panel-sheet") || prefersMobileSheet()) return;
+    const trigger = whenTriggers.find((item) => item.classList.contains("is-open")) || outboundTrigger;
+    placeWhenDropdown(trigger);
   });
 
   const whenPicker = attachWhenPicker({
@@ -405,6 +510,8 @@ export function attachSearchChrome({
     timeInput,
     returnDateInput,
     returnTimeInput,
+    originInput,
+    destinationInput,
     panel: whenPanel,
     onChange: () => {
       updateWhenSummary();
@@ -412,30 +519,20 @@ export function attachSearchChrome({
     },
   });
   document.getElementById("when-done").addEventListener("click", () => {
-    if (whenPicker.focusLeg() === "outbound" && whenPicker.tripType() !== "single") {
-      // Stay expanded; just move focus to the return leg.
-      const returnBtn = returnTrigger.hidden ? addReturnTrigger : returnTrigger;
-      sheetAnchor = returnBtn;
-      whenTriggers.forEach(clearTrigger);
-      returnBtn.classList.add("is-active", "is-open");
-      returnBtn.setAttribute("aria-expanded", "true");
-      whenPicker.setFocus("return");
-      requestAnimationFrame(() => tripTypePills.refresh({ animate: false }));
-      return;
+    if (whenPanel.classList.contains("panel-sheet")) collapsePanelSheet(whenPanel);
+    else {
+      closePanels(null);
+      clearWhenDropdownPosition();
     }
-    collapsePanelSheet(whenPanel);
   });
 
   form.addEventListener("click", (event) => {
     const closer = event.target.closest("[data-close-panel]");
     if (!closer || closer.id === "when-done") return;
     event.preventDefault();
-    if (!whenPanel.hidden && whenPanel.contains(closer)) {
-      collapsePanelSheet(whenPanel);
-      return;
-    }
-    if (!whoPanel.hidden && whoPanel.contains(closer)) {
-      collapsePanelSheet(whoPanel);
+    const sheet = closer.closest(".search-panel");
+    if (sheet && !sheet.hidden && sheet.classList.contains("panel-sheet")) {
+      collapsePanelSheet(sheet);
       return;
     }
     closePanels(null);
@@ -609,27 +706,21 @@ export function attachSearchChrome({
   function advanceAfter(input) {
     setTimeout(() => {
       if (input === originInput) {
+        if (destinationCrs.value) return;
         destinationInput.focus();
         destinationInput.select();
         return;
       }
-      if (page.classList.contains("is-season")) {
-        destinationInput.blur();
-        originInput.closest(".search-cell")?.classList.remove("is-active");
-        destinationInput.closest(".search-cell")?.classList.remove("is-active");
-        for (const list of searchBar.querySelectorAll(".station-suggestions")) {
-          list.hidden = true;
-        }
-        openPanel(seasonStartTrigger, seasonStartPanel);
-        return;
-      }
+      const season = page.classList.contains("is-season");
+      if (season ? seasonStartInput.value : dateInput.value) return;
       destinationInput.blur();
       originInput.closest(".search-cell")?.classList.remove("is-active");
       destinationInput.closest(".search-cell")?.classList.remove("is-active");
       for (const list of searchBar.querySelectorAll(".station-suggestions")) {
         list.hidden = true;
       }
-      openWhen("outbound");
+      if (season) openPanel(seasonStartTrigger, seasonStartPanel);
+      else openWhen("outbound");
     }, 50);
   }
 
@@ -642,6 +733,7 @@ export function attachSearchChrome({
     originCrs.value = destinationCrs.value;
     destinationInput.value = name;
     destinationCrs.value = nlc;
+    delete destinationInput.dataset.stadium;
     closePanels(null);
     for (const list of searchBar.querySelectorAll(".station-suggestions")) {
       list.hidden = true;
@@ -677,6 +769,11 @@ export function attachSearchChrome({
       outboundSummary.classList.add("is-placeholder");
       outboundTime.textContent = "";
       outboundTime.hidden = true;
+    } else if (isDefaultOutbound(dateInput, timeInput)) {
+      outboundSummary.classList.remove("is-placeholder");
+      outboundSummary.textContent = "Today, Now";
+      outboundTime.textContent = "";
+      outboundTime.hidden = true;
     } else {
       outboundSummary.classList.remove("is-placeholder");
       outboundSummary.textContent = dayOut;
@@ -685,6 +782,7 @@ export function attachSearchChrome({
     }
 
     if (hasReturn) {
+      returnSlot.hidden = false;
       returnTrigger.hidden = false;
       addReturnTrigger.hidden = true;
       returnSummary.classList.remove("is-placeholder");
@@ -699,6 +797,7 @@ export function attachSearchChrome({
         returnTimeSummary.hidden = !returnTimeInput.value;
       }
     } else {
+      returnSlot.hidden = true;
       returnTrigger.hidden = true;
       addReturnTrigger.hidden = false;
       returnSummary.textContent = "Add date";
@@ -901,6 +1000,7 @@ export function attachSearchChrome({
       updateWhenSummary();
       whenPicker.refresh();
     },
+    tripType: () => whenPicker.tripType(),
     updateWhoSummary,
     updateRouteChips,
     seasonSearchState,

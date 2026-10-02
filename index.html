@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Journey planner</title>
+    <title>Euros Journey Planner</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -14,15 +14,12 @@
   </head>
   <body>
     <header class="site-header">
-      <a class="wordmark" href="/">journey</a>
-      <a class="header-lab" href="/v2/">Try v2</a>
-      <a class="header-lab" href="/v3/">Try v3</a>
+      <a class="wordmark" href="/">Euros Journey Planner</a>
     </header>
 
     <main class="page">
       <section class="hero" id="hero">
         <div class="hero-copy">
-          <h1>Where to next?</h1>
           <div class="mode-switch pill-switch" role="tablist" aria-label="Search mode">
             <span class="pill-switch-pill" aria-hidden="true"></span>
             <button type="button" id="mode-tickets" role="tab" aria-selected="true">Day tickets</button>
@@ -98,16 +95,30 @@
                 </span>
               </button>
               <div class="search-rule when-mid-rule" aria-hidden="true"></div>
-              <button type="button" class="search-cell when-leg" id="return-trigger" aria-expanded="false" hidden>
-                <span class="cell-label">Return</span>
-                <span class="cell-meta">
-                  <span class="cell-value" id="return-summary">Add date</span>
-                  <span class="cell-value when-time" id="return-time-summary" hidden></span>
-                </span>
-              </button>
+              <div class="when-return" id="return-slot" hidden>
+                <button type="button" class="search-cell when-leg" id="return-trigger" aria-expanded="false">
+                  <span class="cell-label">Return</span>
+                  <span class="cell-meta">
+                    <span class="cell-value" id="return-summary">Add date</span>
+                    <span class="cell-value when-time" id="return-time-summary" hidden></span>
+                  </span>
+                </button>
+                <button type="button" class="when-return-clear" id="return-clear" aria-label="Remove return">
+                  <svg viewBox="0 0 32 32" width="16" height="16" aria-hidden="true">
+                    <path d="M6 6l20 20M26 6 6 26" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+                  </svg>
+                </button>
+              </div>
               <button type="button" class="search-cell when-leg when-add-return" id="add-return-trigger" aria-expanded="false">
                 <span class="cell-label">Return</span>
-                <span class="cell-value is-placeholder">Add return</span>
+                <span class="cell-meta">
+                  <span class="cell-value is-placeholder">Add return</span>
+                </span>
+                <span class="when-add-return-mark" aria-hidden="true">
+                  <svg viewBox="0 0 32 32" width="16" height="16">
+                    <path d="M6 16h20M16 6v20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+                  </svg>
+                </span>
               </button>
             </div>
 
@@ -169,11 +180,11 @@
             <input id="return-time" name="return-time" type="hidden" />
             <input id="outward-mode" type="hidden" value="Depart" />
             <input id="return-mode" type="hidden" value="Depart" />
-            <input id="open-return" type="checkbox" hidden />
 
             <header class="panel-sheet-head">
               <div class="panel-sheet-copy">
                 <p class="panel-sheet-eyebrow" id="when-sheet-eyebrow">Outbound</p>
+                <p class="panel-sheet-route" id="when-sheet-route"></p>
                 <h2 class="panel-sheet-title" id="when-sheet-title">Outbound date/time</h2>
               </div>
               <button type="button" class="panel-sheet-close" data-close-panel aria-label="Close date and time picker">
@@ -184,12 +195,6 @@
             </header>
 
             <div class="panel-sheet-body">
-            <div class="trip-type pill-switch" id="trip-type" role="radiogroup" aria-label="Journey type">
-              <button type="button" id="trip-single" aria-selected="false">Single</button>
-              <button type="button" id="trip-return" aria-selected="true">Return</button>
-              <button type="button" id="trip-open" aria-selected="false">Open Return</button>
-            </div>
-
             <div class="calendar-shell">
               <div class="calendar-nav">
                 <button type="button" class="cal-nav" id="cal-prev" aria-label="Previous month">‹</button>
@@ -209,7 +214,7 @@
               <div class="time-block">
                 <div class="time-block-head">
                   <p class="panel-kicker">Outbound</p>
-                  <span class="time-block-date" id="outward-date-label"></span>
+                  <p class="time-block-when" id="outward-date-label"></p>
                 </div>
                 <div class="time-pickers">
                   <div class="mini-picker" id="outward-mode-picker">
@@ -233,8 +238,14 @@
               </div>
               <div class="time-block" id="return-time-block">
                 <div class="time-block-head">
-                  <p class="panel-kicker">Return</p>
-                  <span class="time-block-date" id="return-date-label"></span>
+                  <div class="return-title">
+                    <p class="panel-kicker">Return</p>
+                    <label class="open-return" id="open-return-toggle">
+                      <input id="open-return" type="checkbox" />
+                      Open Return
+                    </label>
+                  </div>
+                  <p class="time-block-when" id="return-date-label"></p>
                 </div>
                 <div class="time-pickers" id="return-pickers">
                   <div class="mini-picker" id="return-mode-picker">
@@ -255,7 +266,6 @@
                     <ul class="mini-picker-menu picker-times" id="return-time-menu" hidden role="listbox"></ul>
                   </div>
                 </div>
-                <p class="open-return-note" id="open-return-note" hidden>Open Return</p>
                 <p class="when-hint" id="when-hint" hidden>Select a return date on the calendar</p>
               </div>
             </div>
@@ -270,7 +280,6 @@
           <div class="search-panel who-panel" id="who-panel" hidden>
             <header class="panel-sheet-head">
               <div class="panel-sheet-copy">
-                <p class="panel-sheet-eyebrow">Travellers</p>
                 <h2 class="panel-sheet-title">Who’s going?</h2>
               </div>
               <button type="button" class="panel-sheet-close" data-close-panel aria-label="Close travellers picker">
@@ -313,10 +322,12 @@
             <div class="railcards-block">
               <div class="railcards-head">
                 <p class="guest-title">Railcards</p>
-                <p class="guest-sub">Add any discounts you hold</p>
+                <div class="railcards-sub">
+                  <p class="guest-sub">Add any discounts you hold</p>
+                  <button type="button" id="add-railcard" class="text-link add-railcard">Add</button>
+                </div>
               </div>
               <div id="railcard-list" class="railcard-list"></div>
-              <button type="button" id="add-railcard" class="text-link add-railcard">Add</button>
             </div>
             </div>
             <div class="panel-sheet-foot">
@@ -483,7 +494,6 @@
           <div class="search-panel filter-panel" id="route-panel" hidden>
             <header class="panel-sheet-head">
               <div class="panel-sheet-copy">
-                <p class="panel-sheet-eyebrow">Route options</p>
                 <h2 class="panel-sheet-title">Via or avoid</h2>
               </div>
               <button type="button" class="panel-sheet-close" data-close-panel aria-label="Close via or avoid">
@@ -530,7 +540,6 @@
           <div class="search-panel filter-panel" id="discount-panel" hidden>
             <header class="panel-sheet-head">
               <div class="panel-sheet-copy">
-                <p class="panel-sheet-eyebrow">Offers</p>
                 <h2 class="panel-sheet-title">Discount code</h2>
               </div>
               <button type="button" class="panel-sheet-close" data-close-panel aria-label="Close discount code">

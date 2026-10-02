@@ -315,7 +315,7 @@ export function hydrateQuestion(root, store) {
   const destinationNlc = root.querySelector("#v2-destination-nlc");
   if (origin && destination) {
     attachStationPicker(origin, originNlc);
-    attachStationPicker(destination, destinationNlc);
+    attachStationPicker(destination, destinationNlc, { stadiums: true });
     const syncRoute = () =>
       store.set({
         originName: origin.value,

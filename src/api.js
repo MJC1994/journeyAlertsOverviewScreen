@@ -77,11 +77,7 @@ export async function planJourneys(payload) {
 }
 
 export async function fetchService(rid) {
-  const response = await fetch(`/departure-boards/service/${encodeURIComponent(rid)}`, {
-    headers: {
-      accept: "application/json, text/plain, */*",
-    },
-  });
+  const response = await fetch(`/departure-boards/service/${encodeURIComponent(rid)}`);
   const text = await response.text();
   let data = null;
   try {
@@ -95,6 +91,44 @@ export async function fetchService(rid) {
   }
   if (!data || typeof data !== "object") {
     throw new Error("Service lookup returned an unexpected response.");
+  }
+  return data;
+}
+
+export async function fetchTubeJourney({ from, to, date, time, timeIs = "Departing" }) {
+  const params = new URLSearchParams({ mode: "tube,walking", timeIs, journeyPreference: "LeastTime" });
+  if (date) params.set("date", date);
+  if (time) params.set("time", time);
+  const place = (value) => (Array.isArray(value) ? value.join(",") : String(value));
+  return fetchTfl(`/tfl/Journey/JourneyResults/${place(from)}/to/${place(to)}?${params.toString()}`);
+}
+
+export async function fetchTubeStations([lat, lon]) {
+  const params = new URLSearchParams({
+    lat: String(lat),
+    lon: String(lon),
+    stopTypes: "NaptanMetroStation",
+    modes: "tube",
+    radius: "600",
+  });
+  const data = await fetchTfl(`/tfl/StopPoint?${params.toString()}`);
+  return data.stopPoints ?? [];
+}
+
+async function fetchTfl(url) {
+  const response = await fetch(url, { headers: { accept: "application/json" } });
+  const text = await response.text();
+  let data = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = null;
+  }
+  if (!response.ok) {
+    throw new Error(data?.message || `Underground lookup failed (${response.status}).`);
+  }
+  if (!data || typeof data !== "object") {
+    throw new Error("Underground lookup returned an unexpected response.");
   }
   return data;
 }

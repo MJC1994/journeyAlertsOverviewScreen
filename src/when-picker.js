@@ -7,6 +7,8 @@ export function attachWhenPicker({
   timeInput,
   returnDateInput,
   returnTimeInput,
+  originInput,
+  destinationInput,
   panel,
   onChange,
 }) {
@@ -17,6 +19,7 @@ export function attachWhenPicker({
   const returnTime = panel.querySelector("#return-time-value");
   const outwardDateLabel = panel.querySelector("#outward-date-label");
   const returnDateLabel = panel.querySelector("#return-date-label");
+  const sheetRoute = panel.querySelector("#when-sheet-route");
   const returnTimeBlock = panel.querySelector("#return-time-block");
   const outwardTimeBlock = panel.querySelector(".time-block:not(#return-time-block)");
   const returnPickers = panel.querySelector("#return-pickers");
@@ -26,16 +29,12 @@ export function attachWhenPicker({
   const outwardModeLabel = panel.querySelector("#outward-mode-label");
   const returnModeLabel = panel.querySelector("#return-mode-label");
   const openReturnInput = panel.querySelector("#open-return");
-  const openReturnNote = panel.querySelector("#open-return-note");
-  const tripSingle = panel.querySelector("#trip-single");
-  const tripReturn = panel.querySelector("#trip-return");
-  const tripOpen = panel.querySelector("#trip-open");
   const removeReturnBtn = panel.querySelector("#when-remove-return");
   const sheetEyebrow = panel.querySelector("#when-sheet-eyebrow");
   const sheetTitle = panel.querySelector("#when-sheet-title");
 
   let viewMonth = monthStart(parseDate(dateInput.value) || new Date());
-  let oneWay = false;
+  let oneWay = !returnDateInput.value;
   let focusLeg = "outbound";
 
   const pickers = [
@@ -78,9 +77,9 @@ export function attachWhenPicker({
     if (dayBtn) chooseDate(dayBtn.dataset.date);
   });
 
-  tripSingle.addEventListener("click", () => setTripType("single"));
-  tripReturn.addEventListener("click", () => setTripType("return"));
-  tripOpen.addEventListener("click", () => setTripType("open"));
+  openReturnInput.addEventListener("change", () => {
+    setTripType(openReturnInput.checked ? "open" : "return");
+  });
   removeReturnBtn?.addEventListener("click", () => {
     setTripType("single");
     setFocus("outbound");
@@ -133,13 +132,6 @@ export function attachWhenPicker({
     return "return";
   }
 
-  function syncTripTabs() {
-    const type = tripType();
-    tripSingle.setAttribute("aria-selected", String(type === "single"));
-    tripReturn.setAttribute("aria-selected", String(type === "return"));
-    tripOpen.setAttribute("aria-selected", String(type === "open"));
-  }
-
   function closePickers(except) {
     for (const picker of pickers) {
       if (picker === except) continue;
@@ -153,10 +145,18 @@ export function attachWhenPicker({
     closePickers();
     picker.menu.hidden = false;
     picker.trigger.setAttribute("aria-expanded", "true");
-    if (!picker.menu.classList.contains("picker-times")) return;
-    const selected = picker.menu.querySelector(`[data-time="${picker.input.value}"]`);
-    if (selected) picker.menu.scrollTop = selected.offsetTop - picker.menu.clientHeight / 2 + selected.clientHeight / 2;
+    placeMenu(picker.menu, picker.trigger);
+    revealSelected(picker.menu, picker.input.value);
   }
+
+  const followOpenMenu = () => {
+    for (const picker of pickers) {
+      if (picker.menu.hidden) continue;
+      placeMenu(picker.menu, picker.trigger);
+    }
+  };
+  panel.querySelector(".panel-sheet-body")?.addEventListener("scroll", followOpenMenu, { passive: true });
+  window.addEventListener("resize", followOpenMenu);
 
   function pickerByTrigger(id) {
     return pickers.find((picker) => picker.trigger.id === id);
@@ -170,6 +170,7 @@ export function attachWhenPicker({
       if (!willOpen) return;
       menu.hidden = false;
       trigger.setAttribute("aria-expanded", "true");
+      placeMenu(menu, trigger);
     });
     menu.addEventListener("click", (event) => {
       const option = event.target.closest("[data-mode]");
@@ -194,8 +195,8 @@ export function attachWhenPicker({
       if (!willOpen) return;
       menu.hidden = false;
       trigger.setAttribute("aria-expanded", "true");
-      const selected = menu.querySelector(`[data-time="${input.value}"]`);
-      if (selected) menu.scrollTop = selected.offsetTop - menu.clientHeight / 2 + selected.clientHeight / 2;
+      placeMenu(menu, trigger);
+      revealSelected(menu, input.value);
     });
     menu.addEventListener("click", (event) => {
       const option = event.target.closest("[data-time]");
@@ -265,17 +266,23 @@ export function attachWhenPicker({
     renderMonth(grids[1], shiftMonth(viewMonth, 1));
 
     timeInput.value = snapToQuarter(timeInput.value);
-    if (!returnTimeInput.value) returnTimeInput.value = timeInput.value;
-    returnTimeInput.value = snapToQuarter(returnTimeInput.value);
+    if (oneWay) {
+      returnTimeInput.value = "";
+    } else {
+      if (!returnTimeInput.value) returnTimeInput.value = timeInput.value;
+      returnTimeInput.value = snapToQuarter(returnTimeInput.value);
+    }
     if (!outwardModeInput.value) outwardModeInput.value = "Depart";
     if (!returnModeInput.value) returnModeInput.value = "Depart";
 
     outwardTime.textContent = formatDisplayTime(timeInput.value);
-    returnTime.textContent = formatDisplayTime(returnTimeInput.value);
+    returnTime.textContent = formatDisplayTime(returnTimeInput.value || timeInput.value);
     const openReturn = !oneWay && openReturnInput.checked;
+    const fromName = originInput?.value?.trim() || "";
+    const toName = destinationInput?.value?.trim() || "";
     outwardDateLabel.textContent = formatWeekdayDate(dateInput.value);
-    returnDateLabel.textContent = oneWay || openReturn ? "" : formatWeekdayDate(returnDateInput.value);
-    returnDateLabel.hidden = oneWay || openReturn || !returnDateInput.value;
+    returnDateLabel.textContent = openReturn ? "Open return" : formatWeekdayDate(returnDateInput.value);
+    returnDateLabel.hidden = oneWay || (!openReturn && !returnDateInput.value);
     outwardModeLabel.textContent = MODE_LABELS[outwardModeInput.value] || MODE_LABELS.Depart;
     returnModeLabel.textContent = MODE_LABELS[returnModeInput.value] || MODE_LABELS.Depart;
     syncOptions(panel.querySelector("#outward-mode-menu"), "mode", outwardModeInput.value);
@@ -291,29 +298,31 @@ export function attachWhenPicker({
     returnTimeBlock.classList.toggle("is-empty", oneWay);
     returnTimeBlock.classList.toggle("is-open-return", openReturn);
     returnPickers.hidden = oneWay || openReturn;
-    openReturnNote.hidden = !openReturn || !editingReturn;
     hint.hidden = !editingReturn || oneWay || hasReturn || openReturn;
     if (removeReturnBtn) removeReturnBtn.hidden = !editingReturn || oneWay;
     if (sheetEyebrow && sheetTitle) {
+      const outboundWhen = isDefaultOutbound(dateInput, timeInput)
+        ? "Today, Now"
+        : [formatWeekdayDate(dateInput.value), formatDisplayTime(timeInput.value)].filter(Boolean).join(" · ");
+      const returnWhen = openReturn
+        ? formatWeekdayDate(returnDateInput.value || dateInput.value) || "Open return"
+        : [formatWeekdayDate(returnDateInput.value), formatDisplayTime(returnTimeInput.value)].filter(Boolean).join(" · ");
+      if (sheetRoute) {
+        sheetRoute.textContent =
+          fromName && toName ? (editingReturn ? `${toName} → ${fromName}` : `${fromName} → ${toName}`) : "";
+      }
       if (editingReturn) {
         sheetEyebrow.textContent = "Returning";
-        sheetTitle.textContent = openReturn
-          ? formatWeekdayDate(returnDateInput.value || dateInput.value) || "Open return"
-          : [formatWeekdayDate(returnDateInput.value), formatDisplayTime(returnTimeInput.value)]
-              .filter(Boolean)
-              .join(" · ") || "Choose date/time";
+        sheetTitle.textContent = returnWhen || "Choose date/time";
       } else {
         sheetEyebrow.textContent = "Outbound";
-        sheetTitle.textContent =
-          [formatWeekdayDate(dateInput.value), formatDisplayTime(timeInput.value)].filter(Boolean).join(" · ") ||
-          "Choose date/time";
+        sheetTitle.textContent = outboundWhen || "Choose date/time";
       }
     }
     panel.classList.toggle("is-one-way", oneWay);
     panel.classList.toggle("is-open-return", openReturn);
     panel.classList.toggle("is-focus-return", editingReturn);
     panel.classList.toggle("is-focus-outbound", !editingReturn);
-    syncTripTabs();
 
     const prev = panel.querySelector("#cal-prev");
     const todayMonth = monthStart(new Date());
@@ -378,6 +387,34 @@ export function attachWhenPicker({
   };
 }
 
+function placeMenu(menu, trigger) {
+  const gap = 6;
+  const margin = 12;
+  const rect = trigger.getBoundingClientRect();
+  const spaceBelow = window.innerHeight - rect.bottom - gap - margin;
+  const spaceAbove = rect.top - gap - margin;
+  const openBelow = spaceBelow >= 180 || spaceBelow >= spaceAbove;
+  const room = Math.max(0, openBelow ? spaceBelow : spaceAbove);
+  const width = rect.width;
+  const left = Math.min(Math.max(margin, rect.left), Math.max(margin, window.innerWidth - width - margin));
+  menu.style.left = `${left}px`;
+  menu.style.width = `${width}px`;
+  menu.style.maxHeight = `${Math.min(320, room)}px`;
+  if (openBelow) {
+    menu.style.top = `${rect.bottom + gap}px`;
+    menu.style.bottom = "auto";
+  } else {
+    menu.style.top = "auto";
+    menu.style.bottom = `${window.innerHeight - rect.top + gap}px`;
+  }
+}
+
+function revealSelected(menu, value) {
+  const selected = menu.querySelector(`[data-time="${value}"]`);
+  if (!selected) return;
+  menu.scrollTop = selected.offsetTop - menu.clientHeight / 2 + selected.clientHeight / 2;
+}
+
 function syncOptions(menu, key, value) {
   if (!menu) return;
   for (const button of menu.querySelectorAll("button")) {
@@ -395,6 +432,12 @@ function quarterTimes() {
     }
   }
   return times;
+}
+
+export function isDefaultOutbound(dateInput, timeInput) {
+  const date = dateInput?.dataset.defaultValue;
+  const time = timeInput?.dataset.defaultValue;
+  return Boolean(date && time && dateInput.value === date && timeInput.value === time);
 }
 
 export function snapToQuarter(hhmm) {

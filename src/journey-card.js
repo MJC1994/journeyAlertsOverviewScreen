@@ -2,7 +2,7 @@ import { clockStamp, durationLabel, escapeHtml, renderClock, resolveClock, stati
 import { normalizeJpResponse } from "./jp-journey.js";
 import { journeyHref } from "./journey-url.js";
 
-export function renderJourneyCard(journey) {
+export function renderJourneyCard(journey, { stadium = "" } = {}) {
   const origin = stationName(journey.origin);
   const destination = stationName(journey.destination);
   const depart = resolveClock({
@@ -18,7 +18,7 @@ export function renderJourneyCard(journey) {
   const trainCount = legs.filter((leg) => leg.mode === "TRAIN").length;
   const changeCount = Number.isFinite(journey.changes) ? journey.changes : Math.max(0, trainCount - 1);
   const changes = changeCount === 0 ? "Direct" : `${changeCount} ${changeCount === 1 ? "change" : "changes"}`;
-  const href = journeyHref(journey);
+  const href = journeyHref(journey, { stadium });
   const tag = href ? "a" : "div";
   const attrs = href
     ? `href="${escapeHtml(href)}"`
@@ -26,21 +26,29 @@ export function renderJourneyCard(journey) {
   const onTime = Boolean(depart.scheduledClock || arrive.scheduledClock) && !depart.late && !arrive.late;
 
   return `<${tag} class="journey-row" ${attrs}>
-    <span class="journey-row-route">
-      <span class="journey-row-station">${escapeHtml(origin)}</span>
-      <span class="journey-row-arrow" aria-hidden="true">→</span>
-      <span class="journey-row-station">${escapeHtml(destination)}</span>
+    <span class="journey-row-main">
+      <span class="journey-row-times">
+        ${renderClock(depart)}
+        <span class="journey-row-arrow" aria-hidden="true">–</span>
+        ${renderClock(arrive)}
+      </span>
+      <span class="journey-row-route">
+        <span class="journey-row-station">${escapeHtml(origin)}</span>
+        <span class="journey-row-arrow" aria-hidden="true">→</span>
+        <span class="journey-row-station">${escapeHtml(destination)}</span>
+      </span>
+      <span class="journey-row-meta">
+        ${onTime ? `<span class="journey-row-status">On time</span>` : ""}
+        <span>${escapeHtml(changes)}</span>
+        ${duration ? `<span>${escapeHtml(duration)}</span>` : ""}
+      </span>
     </span>
-    <span class="journey-row-times">
-      ${renderClock(depart)}
-      <span class="journey-row-arrow" aria-hidden="true">–</span>
-      ${renderClock(arrive)}
-    </span>
-    ${onTime ? `<span class="clock-note">On time</span>` : ""}
-    <span class="journey-row-meta">
-      <span>${escapeHtml(changes)}</span>
-      ${duration ? `<span>${escapeHtml(duration)}</span>` : ""}
-    </span>
+    ${href ? `<span class="journey-row-cta">
+      <span class="journey-row-cta-label">View journey</span>
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+        <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </span>` : ""}
   </${tag}>`;
 }
 
