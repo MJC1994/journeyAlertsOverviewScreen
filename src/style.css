@@ -1071,53 +1071,57 @@ h1 {
   }
 }
 
+/* Laid out full screen throughout; the clip grows from the tapped control so
+   the contents never reflow mid-animation. */
 .search-panel.panel-sheet {
   position: fixed;
-  top: var(--sheet-t, 0px);
+  top: 0;
   right: auto;
   bottom: auto;
-  left: var(--sheet-l, 0px);
+  left: 0;
   z-index: 120;
   display: flex;
   flex-direction: column;
-  width: var(--sheet-w, 100%);
-  height: var(--sheet-h, 100dvh);
+  width: 100%;
+  height: 100dvh;
   max-height: none;
   margin: 0;
-  border-radius: var(--sheet-radius, 24px);
-  box-shadow: var(--panel-shadow);
+  border-radius: 0;
+  box-shadow: none;
   transform: none;
   overflow: hidden;
-  transition:
-    top 320ms cubic-bezier(0.22, 1, 0.36, 1),
-    left 320ms cubic-bezier(0.22, 1, 0.36, 1),
-    width 320ms cubic-bezier(0.22, 1, 0.36, 1),
-    height 320ms cubic-bezier(0.22, 1, 0.36, 1),
-    border-radius 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  clip-path: inset(
+    var(--sheet-t, 0px) var(--sheet-r, 0px) var(--sheet-b, 0px) var(--sheet-l, 0px)
+    round var(--sheet-radius, 24px)
+  );
+  transition: clip-path 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: clip-path;
 }
 
 .search-panel.panel-sheet.is-sheet-open {
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100dvh;
-  border-radius: 0;
-  box-shadow: none;
+  clip-path: inset(0px 0px 0px 0px round 0px);
+  transition: clip-path 440ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-/* Fade out quickly while collapsing; fade in after the shell expands. */
+/* Contents fade out fast on close, then rise in once the clip has opened. */
 .search-panel.panel-sheet .panel-sheet-head,
 .search-panel.panel-sheet .panel-sheet-body,
 .search-panel.panel-sheet .panel-sheet-foot {
   opacity: 0;
-  transition: opacity 160ms ease;
+  transform: translateY(8px);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
 }
 
 .search-panel.panel-sheet.is-sheet-open .panel-sheet-head,
 .search-panel.panel-sheet.is-sheet-open .panel-sheet-body,
 .search-panel.panel-sheet.is-sheet-open .panel-sheet-foot {
   opacity: 1;
-  transition: opacity 260ms ease 140ms;
+  transform: none;
+  transition:
+    opacity 240ms ease 120ms,
+    transform 380ms cubic-bezier(0.32, 0.72, 0, 1) 80ms;
 }
 
 body.is-panel-sheet-open {
@@ -2079,13 +2083,13 @@ body.is-panel-sheet-open .search-shell {
 
 .station-sheet-field {
   position: relative;
+  z-index: 1;
   display: grid;
   gap: 2px;
   min-width: 0;
   padding: 12px 92px 12px 16px;
   border-radius: 22px;
   cursor: text;
-  transition: background-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .station-sheet-field + .station-sheet-field {
@@ -2186,11 +2190,23 @@ body.is-panel-sheet-open .search-shell {
   opacity: 1;
 }
 
-.station-sheet-field.is-active {
-  position: relative;
-  z-index: 1;
+.station-sheet-highlight {
+  position: absolute;
+  top: 0;
+  right: 6px;
+  left: 6px;
+  z-index: 0;
+  border-radius: 22px;
   background: #fff;
   box-shadow: 0 6px 16px rgb(0 0 0 / 12%);
+  pointer-events: none;
+  transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .station-sheet-highlight {
+    transition: none;
+  }
 }
 
 .station-sheet-field.is-active .station-sheet-query,

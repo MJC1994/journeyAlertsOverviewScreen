@@ -1,5 +1,6 @@
 import { searchStations, stationSearch } from "fuzzy-stations";
 import { getHomeStation, getRecentStations, getWorkStation, rememberStation } from "./station-memory.js";
+import { setSheetOrigin } from "./sheet-motion.js";
 import {
   formatDistance,
   getCachedPosition,
@@ -133,7 +134,7 @@ export function attachStationPicker(input, hidden, { initialCrs, stadiums = fals
         event.preventDefault();
         const inSheet = pairEntry && pairState === "open";
         select(entry);
-        if (inSheet && pairState === "closed") swallowGhostClick();
+        if (inSheet && pairState !== "open") swallowGhostClick();
       });
       list.appendChild(item);
     }
@@ -387,12 +388,30 @@ function ensurePairSheet() {
   closeBtn.addEventListener("click", () => closePairSheet());
   doneBtn.addEventListener("click", () => closePairSheet());
   document.body.appendChild(panel);
+  const highlight = document.createElement("span");
+  highlight.className = "station-sheet-highlight";
+  highlight.setAttribute("aria-hidden", "true");
   pairSheet = {
     panel,
     pair: panel.querySelector(".station-sheet-pair"),
     results: panel.querySelector(".station-sheet-results"),
+    highlight,
   };
   return pairSheet;
+}
+
+function moveHighlight(row) {
+  const { highlight } = pairSheet;
+  if (!row?.isConnected) return;
+  const instant = !highlight.classList.contains("is-placed");
+  if (instant) highlight.style.transition = "none";
+  highlight.style.transform = `translateY(${row.offsetTop}px)`;
+  highlight.style.height = `${row.offsetHeight}px`;
+  if (instant) {
+    void highlight.offsetHeight;
+    highlight.style.transition = "";
+    highlight.classList.add("is-placed");
+  }
 }
 
 function ensurePairRow(entry) {
@@ -453,6 +472,7 @@ function showPairList(entry) {
     field.row?.classList.toggle("is-active", field === entry);
     if (field !== entry) field.list.hidden = true;
   }
+  moveHighlight(entry.row);
 }
 
 function focusPairField(entry) {
@@ -478,7 +498,7 @@ function afterPairSelect(entry) {
     focusPairField(origin);
     return;
   }
-  if (both) closePairSheet({ immediate: true });
+  if (both) closePairSheet();
   else focusPairField(entry === origin ? destination : origin);
 }
 
@@ -492,7 +512,8 @@ function openPairSheet(input) {
     pairStartedOn = entry;
     const swap = document.getElementById("swap-stations");
     if (swap && !pairSwapHome) pairSwapHome = { parent: swap.parentNode, next: swap.nextSibling };
-    sheet.pair.replaceChildren();
+    sheet.highlight.classList.remove("is-placed");
+    sheet.pair.replaceChildren(sheet.highlight);
     for (const field of pairFields) {
       field.standIn = document.createElement("span");
       field.standIn.className = "station-sheet-standin";
@@ -565,7 +586,7 @@ function closePairSheet({ immediate = false } = {}) {
   if (anchor) placePairSheet(pairSheet.panel, anchor);
   pairSheet.panel.classList.remove("is-sheet-open");
   const onEnd = (event) => {
-    if (event.target !== pairSheet.panel || event.propertyName !== "height") return;
+    if (event.target !== pairSheet.panel || event.propertyName !== "clip-path") return;
     pairSheet.panel.removeEventListener("transitionend", onEnd);
     finish();
   };
@@ -574,12 +595,7 @@ function closePairSheet({ immediate = false } = {}) {
 }
 
 function placePairSheet(panel, anchor) {
-  const rect = anchor.getBoundingClientRect();
-  panel.style.setProperty("--sheet-t", `${Math.max(0, rect.top)}px`);
-  panel.style.setProperty("--sheet-l", `${Math.max(0, rect.left)}px`);
-  panel.style.setProperty("--sheet-w", `${Math.max(48, rect.width)}px`);
-  panel.style.setProperty("--sheet-h", `${Math.max(48, rect.height)}px`);
-  panel.style.setProperty("--sheet-radius", "28px");
+  setSheetOrigin(panel, anchor.getBoundingClientRect());
 }
 
 function revealPairSheet(panel, anchor) {

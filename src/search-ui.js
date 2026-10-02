@@ -3,6 +3,7 @@ import { attachSeasonDatePicker } from "./season-start.js";
 import { attachPillSwitch } from "./pill-switch.js";
 import { railcardNames } from "./passengers.js";
 import { ROVER_TICKETS, SEASON_RAILCARD } from "./config.js";
+import { setSheetOrigin } from "./sheet-motion.js";
 
 export function attachSearchChrome({
   form,
@@ -178,15 +179,6 @@ export function attachSearchChrome({
     return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }
 
-  function setSheetOrigin(panel, trigger) {
-    const rect = trigger.getBoundingClientRect();
-    panel.style.setProperty("--sheet-t", `${Math.max(0, rect.top)}px`);
-    panel.style.setProperty("--sheet-l", `${Math.max(0, rect.left)}px`);
-    panel.style.setProperty("--sheet-w", `${Math.max(48, rect.width)}px`);
-    panel.style.setProperty("--sheet-h", `${Math.max(48, rect.height)}px`);
-    panel.style.setProperty("--sheet-radius", "28px");
-  }
-
   function expandPanelSheet(panel, trigger) {
     // Measure before the sheet is shown. Reading layout after .panel-sheet is
     // applied paints the fallback (top/left 0, full viewport) and starts the
@@ -201,11 +193,7 @@ export function attachSearchChrome({
     activeSheetPanel = panel;
     sheetAnchor = trigger;
     document.body.classList.add("is-panel-sheet-open");
-    panel.style.setProperty("--sheet-t", `${Math.max(0, rect.top)}px`);
-    panel.style.setProperty("--sheet-l", `${Math.max(0, rect.left)}px`);
-    panel.style.setProperty("--sheet-w", `${Math.max(48, rect.width)}px`);
-    panel.style.setProperty("--sheet-h", `${Math.max(48, rect.height)}px`);
-    panel.style.setProperty("--sheet-radius", "28px");
+    setSheetOrigin(panel, rect);
     panel.style.transition = "none";
     panel.classList.add("panel-sheet");
     panel.hidden = false;
@@ -270,10 +258,10 @@ export function attachSearchChrome({
       return;
     }
 
-    setSheetOrigin(panel, anchor);
+    setSheetOrigin(panel, anchor.getBoundingClientRect());
     panel.classList.remove("is-sheet-open");
     const onEnd = (event) => {
-      if (event.target !== panel || event.propertyName !== "height") return;
+      if (event.target !== panel || event.propertyName !== "clip-path") return;
       panel.removeEventListener("transitionend", onEnd);
       finish();
     };
