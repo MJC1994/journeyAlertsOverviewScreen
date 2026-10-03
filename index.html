@@ -87,7 +87,7 @@
             <div class="search-rule" aria-hidden="true"></div>
 
             <div class="when-pair" data-cell="when">
-              <button type="button" class="search-cell when-leg" id="outbound-trigger" aria-expanded="false">
+              <button type="button" class="search-cell when-leg" id="outbound-trigger" aria-expanded="false" aria-haspopup="dialog" aria-controls="when-panel">
                 <span class="cell-label">Outbound</span>
                 <span class="cell-meta">
                   <span class="cell-value is-placeholder" id="outbound-summary">Add date</span>
@@ -96,7 +96,7 @@
               </button>
               <div class="search-rule when-mid-rule" aria-hidden="true"></div>
               <div class="when-return" id="return-slot" hidden>
-                <button type="button" class="search-cell when-leg" id="return-trigger" aria-expanded="false">
+                <button type="button" class="search-cell when-leg" id="return-trigger" aria-expanded="false" aria-haspopup="dialog" aria-controls="when-panel">
                   <span class="cell-label">Return</span>
                   <span class="cell-meta">
                     <span class="cell-value" id="return-summary">Add date</span>
@@ -109,7 +109,7 @@
                   </svg>
                 </button>
               </div>
-              <button type="button" class="search-cell when-leg when-add-return" id="add-return-trigger" aria-expanded="false">
+              <button type="button" class="search-cell when-leg when-add-return" id="add-return-trigger" aria-expanded="false" aria-haspopup="dialog" aria-controls="when-panel">
                 <span class="cell-label">Return</span>
                 <span class="cell-meta">
                   <span class="cell-value is-placeholder">Add return</span>
@@ -173,7 +173,7 @@
             </div>
           </div>
 
-          <div class="search-panel when-panel" id="when-panel" hidden>
+          <div class="search-panel when-panel" id="when-panel" hidden role="dialog" aria-modal="true" aria-labelledby="when-sheet-title">
             <input id="date" name="date" type="hidden" required />
             <input id="time" name="time" type="hidden" required />
             <input id="return-date" name="return-date" type="hidden" />
@@ -205,68 +205,102 @@
                 <button type="button" class="cal-nav" id="cal-next" aria-label="Next month">›</button>
               </div>
               <div class="calendars">
-                <div class="calendar-grid" id="calendar-grid"></div>
-                <div class="calendar-grid" id="calendar-grid-next"></div>
+                <div class="calendar-grid" id="calendar-grid" role="grid" aria-labelledby="cal-month-label"></div>
+                <div class="calendar-grid" id="calendar-grid-next" role="grid" aria-labelledby="cal-month-label-next"></div>
               </div>
             </div>
 
             <div class="time-row">
-              <div class="time-block">
+              <div class="time-block" role="group" aria-labelledby="outward-time-heading outward-date-label">
                 <div class="time-block-head">
-                  <p class="panel-kicker">Outbound</p>
-                  <p class="time-block-when" id="outward-date-label"></p>
+                  <p class="panel-kicker" id="outward-time-heading">Outbound</p>
                 </div>
+                <div class="time-block-row">
+                <p class="time-block-when" id="outward-date-label"></p>
                 <div class="time-pickers">
                   <div class="mini-picker" id="outward-mode-picker">
-                    <button type="button" class="mini-picker-trigger" id="outward-mode-trigger" aria-haspopup="listbox" aria-expanded="false">
+                    <button type="button" class="mini-picker-trigger" id="outward-mode-trigger" aria-haspopup="listbox" aria-expanded="false" aria-controls="outward-mode-menu" aria-labelledby="outward-date-label outward-mode-label">
                       <span id="outward-mode-label">Leaving at</span>
                       <span class="mini-picker-caret" aria-hidden="true">▾</span>
                     </button>
-                    <ul class="mini-picker-menu" id="outward-mode-menu" hidden role="listbox">
-                      <li><button type="button" role="option" data-mode="Depart">Leaving at</button></li>
-                      <li><button type="button" role="option" data-mode="Arrive">Arriving by</button></li>
+                    <ul class="mini-picker-menu" id="outward-mode-menu" hidden role="listbox" aria-labelledby="outward-mode-label">
+                      <li role="option" tabindex="-1" data-mode="Depart">Leaving at</li>
+                      <li role="option" tabindex="-1" data-mode="Arrive">Arriving by</li>
                     </ul>
                   </div>
                   <div class="mini-picker mini-picker-time" id="outward-time-picker">
-                    <button type="button" class="mini-picker-trigger" id="outward-time-trigger" aria-haspopup="listbox" aria-expanded="false">
-                      <span id="outward-time-value">12:00</span>
+                    <div class="mini-picker-field">
+                      <input
+                        id="outward-time-trigger"
+                        class="mini-picker-trigger mini-picker-time-input"
+                        type="text"
+                        inputmode="numeric"
+                        autocomplete="off"
+                        spellcheck="false"
+                        maxlength="5"
+                        value="12:00"
+                        role="combobox"
+                        aria-autocomplete="list"
+                        aria-haspopup="listbox"
+                        aria-expanded="false"
+                        aria-controls="outward-time-menu"
+                        aria-label="Outbound time"
+                      />
                       <span class="mini-picker-caret" aria-hidden="true">▾</span>
-                    </button>
-                    <ul class="mini-picker-menu picker-times" id="outward-time-menu" hidden role="listbox"></ul>
+                    </div>
+                    <ul class="mini-picker-menu picker-times" id="outward-time-menu" hidden role="listbox" aria-label="Outbound time"></ul>
                   </div>
+                </div>
                 </div>
               </div>
-              <div class="time-block" id="return-time-block">
+              <div class="time-block" id="return-time-block" role="group" aria-labelledby="return-time-heading return-date-label">
                 <div class="time-block-head">
                   <div class="return-title">
-                    <p class="panel-kicker">Return</p>
+                    <p class="panel-kicker" id="return-time-heading">Return</p>
                     <label class="open-return" id="open-return-toggle">
                       <input id="open-return" type="checkbox" />
-                      Open Return
+                      Open return
                     </label>
                   </div>
-                  <p class="time-block-when" id="return-date-label"></p>
                 </div>
+                <div class="time-block-row">
+                <p class="time-block-when" id="return-date-label"></p>
                 <div class="time-pickers" id="return-pickers">
                   <div class="mini-picker" id="return-mode-picker">
-                    <button type="button" class="mini-picker-trigger" id="return-mode-trigger" aria-haspopup="listbox" aria-expanded="false">
+                    <button type="button" class="mini-picker-trigger" id="return-mode-trigger" aria-haspopup="listbox" aria-expanded="false" aria-controls="return-mode-menu" aria-labelledby="return-date-label return-mode-label">
                       <span id="return-mode-label">Leaving at</span>
                       <span class="mini-picker-caret" aria-hidden="true">▾</span>
                     </button>
-                    <ul class="mini-picker-menu" id="return-mode-menu" hidden role="listbox">
-                      <li><button type="button" role="option" data-mode="Depart">Leaving at</button></li>
-                      <li><button type="button" role="option" data-mode="Arrive">Arriving by</button></li>
+                    <ul class="mini-picker-menu" id="return-mode-menu" hidden role="listbox" aria-labelledby="return-mode-label">
+                      <li role="option" tabindex="-1" data-mode="Depart">Leaving at</li>
+                      <li role="option" tabindex="-1" data-mode="Arrive">Arriving by</li>
                     </ul>
                   </div>
                   <div class="mini-picker mini-picker-time" id="return-time-picker">
-                    <button type="button" class="mini-picker-trigger" id="return-time-trigger" aria-haspopup="listbox" aria-expanded="false">
-                      <span id="return-time-value">16:00</span>
+                    <div class="mini-picker-field">
+                      <input
+                        id="return-time-trigger"
+                        class="mini-picker-trigger mini-picker-time-input"
+                        type="text"
+                        inputmode="numeric"
+                        autocomplete="off"
+                        spellcheck="false"
+                        maxlength="5"
+                        value="16:00"
+                        role="combobox"
+                        aria-autocomplete="list"
+                        aria-haspopup="listbox"
+                        aria-expanded="false"
+                        aria-controls="return-time-menu"
+                        aria-label="Return time"
+                      />
                       <span class="mini-picker-caret" aria-hidden="true">▾</span>
-                    </button>
-                    <ul class="mini-picker-menu picker-times" id="return-time-menu" hidden role="listbox"></ul>
+                    </div>
+                    <ul class="mini-picker-menu picker-times" id="return-time-menu" hidden role="listbox" aria-label="Return time"></ul>
                   </div>
                 </div>
-                <p class="when-hint" id="when-hint" hidden>Select a return date on the calendar</p>
+                </div>
+                <p class="when-hint" id="when-hint" hidden role="status">Select a return date on the calendar</p>
               </div>
             </div>
             </div>
@@ -324,7 +358,7 @@
                 <p class="guest-title">Railcards</p>
                 <div class="railcards-sub">
                   <p class="guest-sub">Add any discounts you hold</p>
-                  <button type="button" id="add-railcard" class="text-link add-railcard">Add</button>
+                  <button type="button" id="add-railcard" class="add-railcard">Add</button>
                 </div>
               </div>
               <div id="railcard-list" class="railcard-list"></div>
@@ -508,7 +542,7 @@
               <button type="button" class="route-mode-btn" id="route-mode-avoid" role="tab" aria-selected="false">Avoid</button>
             </div>
             <div class="station-field" id="via-field">
-              <label for="via">Station</label>
+              <label for="via">Via</label>
               <input
                 id="via"
                 type="text"
@@ -517,10 +551,13 @@
                 aria-autocomplete="list"
                 aria-controls="via-suggestions"
               />
+              <button type="button" class="station-field-clear" aria-label="Clear via station">
+                <svg viewBox="0 0 32 32" width="14" height="14" aria-hidden="true"><path d="M6 6l20 20M26 6 6 26" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" /></svg>
+              </button>
               <input id="via-nlc" type="hidden" name="via" />
             </div>
             <div class="station-field" id="avoid-field" hidden>
-              <label for="avoid">Station</label>
+              <label for="avoid">Avoid</label>
               <input
                 id="avoid"
                 type="text"
@@ -529,6 +566,9 @@
                 aria-autocomplete="list"
                 aria-controls="avoid-suggestions"
               />
+              <button type="button" class="station-field-clear" aria-label="Clear avoid station">
+                <svg viewBox="0 0 32 32" width="14" height="14" aria-hidden="true"><path d="M6 6l20 20M26 6 6 26" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" /></svg>
+              </button>
               <input id="avoid-nlc" type="hidden" name="avoid" />
             </div>
             </div>

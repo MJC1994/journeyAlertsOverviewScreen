@@ -1,4 +1,4 @@
-import { attachWhenPicker, isDefaultOutbound } from "./when-picker.js";
+import { attachWhenPicker, isNowTime, isTodayDate } from "./when-picker.js";
 import { attachSeasonDatePicker } from "./season-start.js";
 import { attachPillSwitch } from "./pill-switch.js";
 import { railcardNames } from "./passengers.js";
@@ -108,6 +108,19 @@ export function attachSearchChrome({
 
   const filterRow = document.querySelector(".filter-row");
   const searchActions = document.querySelector(".search-actions");
+  const searchTicketsBtn = document.getElementById("search-tickets");
+  const searchSubmitBtn = searchActions?.querySelector(".search-submit");
+  const mobileSearch = window.matchMedia("(max-width: 860px)");
+
+  function orderSearchActions() {
+    if (!searchActions || !searchTicketsBtn || !searchSubmitBtn) return;
+    if (mobileSearch.matches) searchActions.insertBefore(searchSubmitBtn, searchTicketsBtn);
+    else searchActions.insertBefore(searchTicketsBtn, searchSubmitBtn);
+  }
+
+  orderSearchActions();
+  mobileSearch.addEventListener("change", orderSearchActions);
+
   let resultsView = "journeys";
 
   function chipFor(trigger) {
@@ -251,6 +264,9 @@ export function attachSearchChrome({
         activeSheetPanel = null;
         sheetAnchor = null;
       }
+      if (anchor?.isConnected && (document.activeElement === document.body || panel.contains(document.activeElement))) {
+        anchor.focus({ preventScroll: true });
+      }
     };
 
     if (prefersReducedMotion() || !panel.classList.contains("is-sheet-open")) {
@@ -331,6 +347,7 @@ export function attachSearchChrome({
       searchBar.classList.add("is-open");
       filterRow.classList.add("is-dimmed");
       whenPicker.setFocus(leg === "outbound" ? "outbound" : "return");
+      requestAnimationFrame(() => whenPicker.focusDate());
       return;
     }
     if (closing) {
@@ -345,6 +362,7 @@ export function attachSearchChrome({
     filterRow.classList.add("is-dimmed");
     expandPanelSheet(whenPanel, trigger);
     whenPicker.setFocus(leg === "outbound" ? "outbound" : "return");
+    requestAnimationFrame(() => whenPicker.focusDate());
   }
 
   function openWho() {
@@ -482,8 +500,31 @@ export function attachSearchChrome({
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
+      const openWhenMenu = whenPanel.querySelector(".mini-picker-menu:not([hidden])");
+      if (openWhenMenu) return;
+      const openPanel = [whenPanel, whoPanel, routePanel, discountPanel, roverPanel, seasonStartPanel, seasonUntilPanel, seasonWhoPanel].find((panel) => !panel.hidden);
+      const returnTo = sheetAnchor || whenTriggers.find((item) => item.classList.contains("is-open")) || whoTrigger;
       closePanels(null);
       clearWhenDropdownPosition();
+      if (openPanel && returnTo?.isConnected) returnTo.focus({ preventScroll: true });
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const openPanel = [whenPanel, whoPanel, routePanel, discountPanel, roverPanel, seasonStartPanel, seasonUntilPanel, seasonWhoPanel].find((panel) => !panel.hidden);
+    if (!openPanel) return;
+    const nodes = focusableIn(openPanel);
+    if (!nodes.length) return;
+    const first = nodes[0];
+    const last = nodes[nodes.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    } else if (!openPanel.contains(document.activeElement)) {
+      event.preventDefault();
+      (event.shiftKey ? last : first).focus();
     }
   });
 
@@ -506,13 +547,27 @@ export function attachSearchChrome({
       syncWhenOpenTrigger();
     },
   });
-  document.getElementById("when-done").addEventListener("click", () => {
-    if (whenPanel.classList.contains("panel-sheet")) collapsePanelSheet(whenPanel);
-    else {
+  function focusableIn(root) {
+    return [...root.querySelectorAll('a[href], button:not([disabled]), input:not([type="hidden"]):not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])')].filter((el) => {
+      if (el.tabIndex < 0) return false;
+      if (el.closest("[hidden]")) return false;
+      if (el.getAttribute("aria-hidden") === "true") return false;
+      return el.getClientRects().length > 0;
+    });
+  }
+
+  function closeWhen() {
+    if (whenPanel.classList.contains("panel-sheet")) {
+      if (sheetAnchor === returnTrigger && returnTrigger.closest("[hidden]")) sheetAnchor = addReturnTrigger;
+      collapsePanelSheet(whenPanel);
+    } else {
       closePanels(null);
       clearWhenDropdownPosition();
     }
-  });
+  }
+
+  document.getElementById("when-done").addEventListener("click", closeWhen);
+  document.getElementById("when-remove-return")?.addEventListener("click", closeWhen);
 
   form.addEventListener("click", (event) => {
     const closer = event.target.closest("[data-close-panel]");
@@ -684,6 +739,18 @@ export function attachSearchChrome({
     });
   }
 
+  searchBar.addEventListener("focusin", (event) => {
+    const cell = event.target.closest(".search-cell");
+    const panelOpen = panels.some(([, panel]) => panel && !panel.hidden);
+    if (!event.target.closest(".station-field") && !panelOpen) searchBar.classList.remove("is-open");
+    for (const item of searchBar.querySelectorAll(".search-cell.is-active")) {
+      if (item === cell) continue;
+      const openTrigger = panels.some(([trigger, panel]) => trigger === item && panel && !panel.hidden && panel.contains(event.target));
+      if (openTrigger) continue;
+      item.classList.remove("is-active");
+    }
+  });
+
   originInput.addEventListener("change", () => {
     if (originCrs.value) advanceAfter(originInput);
   });
@@ -728,6 +795,14 @@ export function attachSearchChrome({
     }
   });
 
+  function overviewWhen(date, time) {
+    const todayNow = isTodayDate(date) && isNowTime(time, timeInput);
+    return {
+      date: todayNow ? "Today" : prettyDay(date),
+      time: todayNow ? "Now" : time,
+    };
+  }
+
   function prettyDay(date) {
     if (!date) return "";
     const parsed = new Date(`${date}T00:00:00`);
@@ -757,15 +832,11 @@ export function attachSearchChrome({
       outboundSummary.classList.add("is-placeholder");
       outboundTime.textContent = "";
       outboundTime.hidden = true;
-    } else if (isDefaultOutbound(dateInput, timeInput)) {
-      outboundSummary.classList.remove("is-placeholder");
-      outboundSummary.textContent = "Today, Now";
-      outboundTime.textContent = "";
-      outboundTime.hidden = true;
     } else {
+      const outbound = overviewWhen(dateInput.value, timeInput.value);
       outboundSummary.classList.remove("is-placeholder");
-      outboundSummary.textContent = dayOut;
-      outboundTime.textContent = timeInput.value;
+      outboundSummary.textContent = outbound.date;
+      outboundTime.textContent = outbound.time;
       outboundTime.hidden = false;
     }
 
@@ -776,12 +847,13 @@ export function attachSearchChrome({
       returnSummary.classList.remove("is-placeholder");
       if (openReturn) {
         returnSummary.textContent =
-          dateInput.value === returnDateInput.value ? "Open Return" : `Open · ${dayBack}`;
+          dateInput.value === returnDateInput.value ? "Open Return" : `Open · ${prettyDay(returnDateInput.value)}`;
         returnTimeSummary.textContent = "";
         returnTimeSummary.hidden = true;
       } else {
-        returnSummary.textContent = dayBack;
-        returnTimeSummary.textContent = returnTimeInput.value;
+        const returning = overviewWhen(returnDateInput.value, returnTimeInput.value);
+        returnSummary.textContent = returning.date;
+        returnTimeSummary.textContent = returning.time;
         returnTimeSummary.hidden = !returnTimeInput.value;
       }
     } else {

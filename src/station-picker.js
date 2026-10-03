@@ -28,11 +28,20 @@ function stadiumIcon() {
   </svg>`;
 }
 
+function savedIcon(kind) {
+  const path =
+    kind === "home"
+      ? '<path d="M4 11 12 4.5 20 11v8a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z"/>'
+      : '<rect x="3.5" y="7.5" width="17" height="12" rx="2"/><path d="M9 7.5V6a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 6v1.5M3.5 12.5h17"/>';
+  return `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true" focusable="false">${path}</svg>`;
+}
+
 export function attachStationPicker(input, hidden, { initialCrs, stadiums = false, sheet = false } = {}) {
   const list = document.createElement("ul");
   list.id = `${input.id}-suggestions`;
   list.className = "station-suggestions";
   list.hidden = true;
+  list.tabIndex = -1;
   list.setAttribute("role", "listbox");
   list.setAttribute("aria-label", "Station suggestions");
   input.parentElement.appendChild(list);
@@ -46,6 +55,7 @@ export function attachStationPicker(input, hidden, { initialCrs, stadiums = fals
   let activeIndex = -1;
   let mode = "browse"; // browse | search
   let nearestStatus = "idle"; // idle | loading | ready | denied | unsupported
+  let replaceOnType = Boolean(hidden.value);
 
   if (initialCrs) {
     const station = stationSearch.findByCrs(initialCrs);
@@ -58,6 +68,7 @@ export function attachStationPicker(input, hidden, { initialCrs, stadiums = fals
   function close() {
     list.hidden = true;
     list.innerHTML = "";
+    list.classList.remove("is-keyboard");
     items = [];
     activeIndex = -1;
     input.setAttribute("aria-expanded", "false");
@@ -71,15 +82,19 @@ export function attachStationPicker(input, hidden, { initialCrs, stadiums = fals
     if (entry.stadium) input.dataset.stadium = entry.stadium.id;
     else delete input.dataset.stadium;
     rememberStation(station);
+    replaceOnType = true;
     close();
     input.dispatchEvent(new Event("change", { bubbles: true }));
     if (pairEntry && pairState !== "closed") afterPairSelect(pairEntry);
+    else if (pairEntry) maybeFocusWhen();
   }
 
   function highlight() {
-    [...list.querySelectorAll('[role="option"]')].forEach((item, index) => {
+    const options = [...list.querySelectorAll('[role="option"]')];
+    options.forEach((item, index) => {
       item.setAttribute("aria-selected", String(index === activeIndex));
     });
+    options[activeIndex]?.scrollIntoView({ block: "nearest" });
   }
 
   function render() {
@@ -88,6 +103,7 @@ export function attachStationPicker(input, hidden, { initialCrs, stadiums = fals
       return;
     }
     list.innerHTML = "";
+    list.classList.toggle("is-searching", mode === "search");
     let optionIndex = 0;
 
     if (!items.length) {
@@ -107,6 +123,7 @@ export function attachStationPicker(input, hidden, { initialCrs, stadiums = fals
     }
 
     let lastGroup = null;
+    let savedRow = null;
     for (const entry of items) {
       if (entry.group && entry.group !== lastGroup) {
         lastGroup = entry.group;
@@ -116,27 +133,44 @@ export function attachStationPicker(input, hidden, { initialCrs, stadiums = fals
         heading.textContent = entry.group;
         list.appendChild(heading);
       }
+      if (entry.saved && !savedRow) {
+        savedRow = document.createElement("li");
+        savedRow.className = "suggestion-saved-row";
+        savedRow.setAttribute("role", "presentation");
+        list.appendChild(savedRow);
+      }
 
-      const item = document.createElement("li");
+      const item = document.createElement(entry.saved ? "div" : "li");
       const index = optionIndex++;
       item.setAttribute("role", "option");
       item.setAttribute("aria-selected", String(index === activeIndex));
       item.dataset.index = String(index);
       if (entry.stadium) item.classList.add("is-stadium");
-      item.innerHTML = `
-        <span class="suggestion-pin">${entry.stadium ? stadiumIcon() : entry.badge || entry.station.crs || ""}</span>
-        <span class="suggestion-copy">
-          <span class="suggestion-name">${entry.stadium ? entry.stadium.name : entry.station.name}</span>
-          ${entry.meta ? `<span class="suggestion-meta">${entry.meta}</span>` : ""}
-        </span>
-      `;
+      if (entry.saved) {
+        item.classList.add("suggestion-saved");
+        item.innerHTML = `
+          <span class="suggestion-pin">${savedIcon(entry.saved)}</span>
+          <span class="suggestion-copy">
+            <span class="suggestion-saved-label">${entry.badge}</span>
+            <span class="suggestion-name">${entry.station.name}</span>
+          </span>
+        `;
+      } else {
+        item.innerHTML = `
+          <span class="suggestion-pin">${entry.stadium ? stadiumIcon() : entry.badge || entry.station.crs || ""}</span>
+          <span class="suggestion-copy">
+            <span class="suggestion-name">${entry.stadium ? entry.stadium.name : entry.station.name}</span>
+            ${entry.meta ? `<span class="suggestion-meta">${entry.meta}</span>` : ""}
+          </span>
+        `;
+      }
       item.addEventListener("mousedown", (event) => {
         event.preventDefault();
         const inSheet = pairEntry && pairState === "open";
         select(entry);
         if (inSheet && pairState !== "open") swallowGhostClick();
       });
-      list.appendChild(item);
+      (entry.saved ? savedRow : list).appendChild(item);
     }
 
     list.hidden = false;
@@ -144,19 +178,21 @@ export function attachStationPicker(input, hidden, { initialCrs, stadiums = fals
   }
 
   function buildBrowseItems(nearest = []) {
-    const entries = stadiums ? STADIUMS.map(stadiumEntry).filter(Boolean) : [];
+    const entries = [];
     const used = new Set();
 
-    const push = (group, station, badge, meta) => {
+    const push = (group, station, badge, meta, saved) => {
       if (!station?.nlc || used.has(station.nlc)) return;
       used.add(station.nlc);
-      entries.push({ group, station, badge, meta });
+      entries.push({ group, station, badge, meta, saved });
     };
 
     const home = getHomeStation();
     const work = getWorkStation();
-    if (home) push("Saved places", home, "Home");
-    if (work) push("Saved places", work, "Work");
+    if (home) push("Saved places", home, "Home", null, "home");
+    if (work) push("Saved places", work, "Work", null, "work");
+
+    if (stadiums) entries.push(...STADIUMS.map(stadiumEntry).filter(Boolean));
 
     for (const item of nearest) {
       push("Nearest", item.station, item.station.crs, formatDistance(item.km));
@@ -238,6 +274,23 @@ export function attachStationPicker(input, hidden, { initialCrs, stadiums = fals
     render();
   }
 
+  const clearBtn = field?.querySelector(".station-field-clear");
+  clearBtn?.addEventListener("pointerdown", (event) => event.preventDefault());
+  clearBtn?.addEventListener("click", () => {
+    input.value = "";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    input.focus();
+  });
+
+  function startFreshSearch() {
+    replaceOnType = false;
+    input.value = "";
+    hidden.value = "";
+    delete input.dataset.stadium;
+    if (pairEntry) syncStandIn(pairEntry);
+  }
+
   input.addEventListener("input", () => {
     hidden.value = "";
     delete input.dataset.stadium;
@@ -245,19 +298,37 @@ export function attachStationPicker(input, hidden, { initialCrs, stadiums = fals
     search(input.value);
   });
 
+  input.addEventListener("beforeinput", (event) => {
+    const inserting =
+      event.inputType === "insertText" ||
+      event.inputType === "insertFromPaste" ||
+      event.inputType === "insertFromDrop" ||
+      event.inputType === "insertCompositionText";
+    if (!inserting) return;
+    if (replaceOnType && hidden.value) startFreshSearch();
+    if (pairEntry && prefersMobileSheet() && pairState === "closed") openPairSheet(input);
+  });
+
   input.addEventListener("focus", () => {
     if (pairEntry && pairState === "closing") {
       input.blur();
       return;
     }
-    if (pairEntry && prefersMobileSheet()) {
-      if (pairState === "closed") openPairSheet(input);
-      else showPairList(pairEntry);
-    }
-    search(input.value);
+    if (pairEntry && prefersMobileSheet() && pairState === "open") showPairList(pairEntry);
+    replaceOnType = Boolean(hidden.value);
+    if (pairState === "open" || !prefersMobileSheet()) search(input.value);
   });
 
   input.addEventListener("keydown", (event) => {
+    if (pairEntry && prefersMobileSheet() && pairState === "closed" && event.key === "Enter") {
+      event.preventDefault();
+      openPairSheet(input);
+      return;
+    }
+    if (replaceOnType && hidden.value && event.key.length === 1 && !event.metaKey && !event.ctrlKey && !event.altKey) {
+      startFreshSearch();
+      if (pairEntry && prefersMobileSheet() && pairState === "closed") openPairSheet(input);
+    }
     if (event.key === "Escape" && pairEntry && pairState !== "closed") {
       event.preventDefault();
       closePairSheet();
@@ -269,10 +340,12 @@ export function attachStationPicker(input, hidden, { initialCrs, stadiums = fals
     if (event.key === "ArrowDown") {
       event.preventDefault();
       activeIndex = (activeIndex + 1) % options.length;
+      list.classList.add("is-keyboard");
       highlight();
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
       activeIndex = (activeIndex - 1 + options.length) % options.length;
+      list.classList.add("is-keyboard");
       highlight();
     } else if (event.key === "Enter" && activeIndex >= 0) {
       event.preventDefault();
@@ -335,12 +408,6 @@ function prefersReducedMotion() {
 function registerPairField(entry) {
   pairFields.push(entry);
   ensurePairSheet();
-  entry.field.addEventListener("click", (event) => {
-    if (!prefersMobileSheet() || pairState !== "closed") return;
-    if (event.target.closest(".swap-stations")) return;
-    event.preventDefault();
-    openPairSheet(entry.input);
-  });
   if (pairFields.length === 1) {
     window.addEventListener("resize", () => {
       if (pairState !== "closed" && !prefersMobileSheet()) closePairSheet({ immediate: true });
@@ -418,6 +485,7 @@ function ensurePairRow(entry) {
   if (entry.row) return entry.row;
   const row = document.createElement("div");
   row.className = "station-sheet-field";
+  if (entry.field.dataset.cell) row.dataset.cell = entry.field.dataset.cell;
   const label = document.createElement("span");
   label.className = "station-sheet-label";
   const name = entry.input.labels?.[0]?.textContent?.trim() || "station";
@@ -498,8 +566,18 @@ function afterPairSelect(entry) {
     focusPairField(origin);
     return;
   }
-  if (both) closePairSheet();
+  if (both) closePairSheet({ restoreFocus: focusWhenTrigger });
   else focusPairField(entry === origin ? destination : origin);
+}
+
+function maybeFocusWhen() {
+  const origin = pairFields.find((field) => field.input.id === "origin");
+  const destination = pairFields.find((field) => field.input.id === "destination");
+  if (origin?.hidden.value && destination?.hidden.value) focusWhenTrigger();
+}
+
+function focusWhenTrigger() {
+  document.getElementById("outbound-trigger")?.focus({ preventScroll: true });
 }
 
 function openPairSheet(input) {
@@ -543,7 +621,7 @@ function swallowGhostClick() {
   window.setTimeout(release, 500);
 }
 
-function closePairSheet({ immediate = false } = {}) {
+function closePairSheet({ immediate = false, restoreFocus } = {}) {
   if (pairState === "closed" || !pairSheet) return;
   for (const field of pairFields) field.suppressBlur = true;
   const active = document.activeElement;
@@ -576,6 +654,7 @@ function closePairSheet({ immediate = false } = {}) {
     document.querySelector(".search-bar")?.classList.remove("is-open");
     pairState = "closed";
     pairStartedOn = null;
+    restoreFocus?.();
   };
   if (immediate || prefersReducedMotion() || !pairSheet.panel.classList.contains("is-sheet-open")) {
     finish();
