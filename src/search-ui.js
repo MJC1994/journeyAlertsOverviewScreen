@@ -937,6 +937,9 @@ export function attachSearchChrome({
     "pointerdown",
     (event) => {
       if (prefersMobileSheet() || event.button) return;
+      // Suggestion rows handle their own mousedown; preventDefault here would
+      // cancel those mouse events and block station selection.
+      if (event.target.closest(".station-suggestions")) return;
       const item = highlightItemFromEvent(event);
       if (!item) return;
       if (item.matches(".station-field") && !event.target.closest("input")) {
@@ -988,6 +991,19 @@ export function attachSearchChrome({
     syncSearchHighlight();
   });
 
+  searchBar.addEventListener("focusout", (event) => {
+    const next = event.relatedTarget;
+    if (next && searchBar.contains(next)) return;
+    requestAnimationFrame(() => {
+      if (searchBar.contains(document.activeElement)) return;
+      for (const item of searchBar.querySelectorAll(".search-cell.is-active")) {
+        const stillOpen = panels.some(([trigger, panel]) => trigger === item && panel && !panel.hidden);
+        if (!stillOpen) item.classList.remove("is-active");
+      }
+      syncSearchHighlight();
+    });
+  });
+
   originInput.addEventListener("change", () => {
     if (originCrs.value) advanceAfter(originInput);
   });
@@ -999,7 +1015,6 @@ export function attachSearchChrome({
     if (prefersMobileSheet()) return;
     setTimeout(() => {
       if (input === originInput) {
-        if (destinationCrs.value) return;
         destinationInput.focus();
         destinationInput.select();
         return;

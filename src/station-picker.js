@@ -88,7 +88,7 @@ export function attachStationPicker(input, hidden, { initialCrs, stadiums = fals
     close();
     input.dispatchEvent(new Event("change", { bubbles: true }));
     if (pairEntry && pairState !== "closed") afterPairSelect(pairEntry);
-    else if (pairEntry) maybeFocusWhen();
+    else if (pairEntry) maybeFocusWhen(pairEntry);
   }
 
   function highlight() {
@@ -161,11 +161,11 @@ export function attachStationPicker(input, hidden, { initialCrs, stadiums = fals
         `;
       } else {
         item.innerHTML = `
-          <span class="suggestion-pin">${entry.stadium ? stadiumIcon() : entry.badge || entry.station.crs || ""}</span>
           <span class="suggestion-copy">
             <span class="suggestion-name">${entry.stadium ? entry.stadium.name : entry.station.name}</span>
             ${entry.meta ? `<span class="suggestion-meta">${entry.meta}</span>` : ""}
           </span>
+          <span class="suggestion-pin">${entry.stadium ? stadiumIcon() : entry.badge || entry.station.crs || ""}</span>
         `;
       }
       item.addEventListener("mousedown", (event) => {
@@ -575,11 +575,18 @@ function afterPairSelect(entry) {
   showPairList(entry);
 }
 
-function maybeFocusWhen() {
+function maybeFocusWhen(entry) {
   if (prefersMobileSheet()) return;
   const origin = pairFields.find((field) => field.input.id === "origin");
   const destination = pairFields.find((field) => field.input.id === "destination");
-  if (origin?.hidden.value && destination?.hidden.value) focusWhenTrigger();
+  if (!origin?.hidden.value || !destination?.hidden.value) return;
+  // Changing From with To already set should revisit To, not jump to When.
+  if (entry === origin) {
+    destination.input.focus({ preventScroll: true });
+    destination.input.select();
+    return;
+  }
+  focusWhenTrigger();
 }
 
 function focusWhenTrigger() {
