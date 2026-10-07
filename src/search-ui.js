@@ -639,18 +639,21 @@ export function attachSearchChrome({
       return;
     }
     if (whenPicker.focusLeg() !== "return") {
-      whenPicker.setFocus("return");
-      updateWhenSummary();
-      syncWhenOpenTrigger();
-      const trigger = returnTrigger.hidden ? addReturnTrigger : returnTrigger;
-      pendingHighlightItem = trigger;
-      if (!prefersMobileSheet() && !whenPanel.hidden) placeWhenDropdown(trigger);
-      requestAnimationFrame(() => {
-        pendingHighlightItem = null;
-        moveSearchHighlight(highlightTarget(trigger) || trigger);
-        whenPicker.focusDate();
-      });
-      return;
+      // Only continue to Return when the user already added one themselves.
+      if (whenPicker.tripType() !== "single") {
+        whenPicker.setFocus("return");
+        updateWhenSummary();
+        syncWhenOpenTrigger();
+        const trigger = returnTrigger.hidden ? addReturnTrigger : returnTrigger;
+        pendingHighlightItem = trigger;
+        if (!whenPanel.hidden) placeWhenDropdown(trigger);
+        requestAnimationFrame(() => {
+          pendingHighlightItem = null;
+          moveSearchHighlight(highlightTarget(trigger) || trigger);
+          whenPicker.focusDate();
+        });
+        return;
+      }
     }
 
     pendingHighlightItem = whoTrigger;
