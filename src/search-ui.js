@@ -31,6 +31,7 @@ export function attachSearchChrome({
   const roverOptions = document.getElementById("rover-options");
   const roverProductInput = document.getElementById("rover-product");
   const roverSummary = document.getElementById("rover-summary");
+  const roverDetail = document.getElementById("rover-detail");
   const outboundTrigger = document.getElementById("outbound-trigger");
   const returnSlot = document.getElementById("return-slot");
   const returnTrigger = document.getElementById("return-trigger");
@@ -62,6 +63,7 @@ export function attachSearchChrome({
   const discountInput = document.getElementById("discount-code");
   const discountApply = document.getElementById("discount-apply");
   const discountStatus = document.getElementById("discount-status");
+  const discountTerms = document.getElementById("discount-terms");
   const viaField = document.getElementById("via-field");
   const avoidField = document.getElementById("avoid-field");
   const viaModeBtn = document.getElementById("route-mode-via");
@@ -153,9 +155,17 @@ export function attachSearchChrome({
       searchBar.classList.remove("is-open");
     }
     syncFilterRow(except);
+    requestAnimationFrame(() => syncSearchHighlight());
   }
 
-  const sheetPanels = new Set([whenPanel, whoPanel]);
+  const sheetPanels = new Set([
+    whenPanel,
+    whoPanel,
+    seasonStartPanel,
+    seasonUntilPanel,
+    seasonWhoPanel,
+    roverPanel,
+  ]);
   let sheetAnchor = null;
   let activeSheetPanel = null;
 
@@ -286,7 +296,44 @@ export function attachSearchChrome({
   }
 
   function syncFilterRow(except) {
-    filterRow.classList.toggle("is-dimmed", except === whenPanel || except === whoPanel);
+    filterRow.classList.toggle(
+      "is-dimmed",
+      except === whenPanel ||
+        except === whoPanel ||
+        except === seasonStartPanel ||
+        except === seasonUntilPanel ||
+        except === seasonWhoPanel ||
+        except === roverPanel,
+    );
+  }
+
+  function openSheetLike(trigger, panel, afterOpen) {
+    const closing = !panel.hidden && trigger.classList.contains("is-open");
+    if (!prefersMobileSheet()) {
+      if (closing) {
+        closePanels(null);
+        return;
+      }
+      closePanels(panel);
+      trigger.classList.add("is-active", "is-open");
+      trigger.setAttribute("aria-expanded", "true");
+      panel.hidden = false;
+      searchBar.classList.add("is-open");
+      filterRow.classList.add("is-dimmed");
+      afterOpen?.();
+      return;
+    }
+    if (closing) {
+      collapsePanelSheet(panel);
+      return;
+    }
+    closePanels(panel);
+    trigger.classList.add("is-active", "is-open");
+    trigger.setAttribute("aria-expanded", "true");
+    searchBar.classList.add("is-open");
+    filterRow.classList.add("is-dimmed");
+    expandPanelSheet(panel, trigger);
+    afterOpen?.();
   }
 
   function toggle(trigger, panel) {
@@ -454,17 +501,37 @@ export function attachSearchChrome({
 
   outboundTrigger.addEventListener("click", () => openWhen("outbound"));
   returnTrigger.addEventListener("click", () => openWhen("return"));
-  addReturnTrigger.addEventListener("click", () => openWhen("return"));
+  addReturnTrigger.addEventListener("click", () => {
+    closePanels(null);
+    whenPicker.setTripType("return");
+  });
   returnClear.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
     whenPicker.setTripType("single");
+    requestAnimationFrame(() => {
+      pendingHighlightItem = null;
+      if (!addReturnTrigger.hidden) {
+        addReturnTrigger.focus({ preventScroll: true });
+        moveSearchHighlight(addReturnTrigger);
+        return;
+      }
+      syncSearchHighlight();
+    });
   });
   whoTrigger.addEventListener("click", () => openWho());
-  roverTrigger.addEventListener("click", () => toggle(roverTrigger, roverPanel));
-  seasonStartTrigger.addEventListener("click", () => toggle(seasonStartTrigger, seasonStartPanel));
-  seasonUntilTrigger.addEventListener("click", () => toggle(seasonUntilTrigger, seasonUntilPanel));
-  seasonWhoTrigger.addEventListener("click", () => toggle(seasonWhoTrigger, seasonWhoPanel));
+  roverTrigger.addEventListener("click", () => openSheetLike(roverTrigger, roverPanel));
+  seasonStartTrigger.addEventListener("click", () =>
+    openSheetLike(seasonStartTrigger, seasonStartPanel, () => seasonStartPicker.refresh()),
+  );
+  seasonUntilTrigger.addEventListener("click", () =>
+    openSheetLike(seasonUntilTrigger, seasonUntilPanel, () => seasonUntilPicker.refresh()),
+  );
+  seasonWhoTrigger.addEventListener("click", () =>
+    openSheetLike(seasonWhoTrigger, seasonWhoPanel, () => {
+      requestAnimationFrame(() => seasonPassengerPills.refresh({ animate: false }));
+    }),
+  )
   routeTrigger.addEventListener("click", () => openFilterSheet(routeTrigger, routePanel));
   discountTrigger.addEventListener("click", () => openFilterSheet(discountTrigger, discountPanel));
   viaModeBtn.addEventListener("click", () => setRouteMode("via", { focus: true }));
@@ -566,7 +633,35 @@ export function attachSearchChrome({
     }
   }
 
-  document.getElementById("when-done").addEventListener("click", closeWhen);
+  function confirmWhen() {
+    if (prefersMobileSheet()) {
+      closeWhen();
+      return;
+    }
+    if (whenPicker.focusLeg() !== "return") {
+      whenPicker.setFocus("return");
+      updateWhenSummary();
+      syncWhenOpenTrigger();
+      const trigger = returnTrigger.hidden ? addReturnTrigger : returnTrigger;
+      pendingHighlightItem = trigger;
+      if (!prefersMobileSheet() && !whenPanel.hidden) placeWhenDropdown(trigger);
+      requestAnimationFrame(() => {
+        pendingHighlightItem = null;
+        moveSearchHighlight(highlightTarget(trigger) || trigger);
+        whenPicker.focusDate();
+      });
+      return;
+    }
+
+    pendingHighlightItem = whoTrigger;
+    if (!prefersMobileSheet()) moveSearchHighlight(whoTrigger);
+    openWho();
+    requestAnimationFrame(() => {
+      pendingHighlightItem = null;
+    });
+  }
+
+  document.getElementById("when-done").addEventListener("click", confirmWhen);
   document.getElementById("when-remove-return")?.addEventListener("click", closeWhen);
 
   form.addEventListener("click", (event) => {
@@ -589,6 +684,7 @@ export function attachSearchChrome({
       focus === "return" ? (returnTrigger.hidden ? addReturnTrigger : returnTrigger) : outboundTrigger;
     trigger.classList.add("is-active", "is-open");
     trigger.setAttribute("aria-expanded", "true");
+    syncSearchHighlight();
   }
   const seasonStartPicker = attachSeasonDatePicker({
     input: seasonStartInput,
@@ -598,7 +694,6 @@ export function attachSearchChrome({
       updateSeasonStartSummary();
       updateSeasonUntilSummary();
       seasonUntilPicker.refresh();
-      closePanels(null);
     },
   });
   const seasonUntilPicker = attachSeasonDatePicker({
@@ -607,7 +702,6 @@ export function attachSearchChrome({
     getMinDate: () => nextDay(seasonStartInput.value) || formatToday(),
     onChange: () => {
       updateSeasonUntilSummary();
-      closePanels(null);
     },
   });
 
@@ -656,9 +750,10 @@ export function attachSearchChrome({
   function updateDiscountChip() {
     discountChipLabel.textContent = appliedDiscount
       ? `Discount Code: ${appliedDiscount}`
-      : "+ Discount code";
+      : "Discount code";
     discountChip.classList.toggle("is-set", Boolean(appliedDiscount));
     discountClear.hidden = !appliedDiscount;
+    if (discountTerms) discountTerms.hidden = !appliedDiscount;
   }
 
   function mockDiscountCheck(code) {
@@ -690,7 +785,6 @@ export function attachSearchChrome({
       discountInput.value = appliedDiscount;
       updateDiscountChip();
       setDiscountStatus("", "");
-      closePanels(null);
     } catch (error) {
       appliedDiscount = "";
       updateDiscountChip();
@@ -706,6 +800,11 @@ export function attachSearchChrome({
   discountInput.addEventListener("input", () => {
     if (discountPending) return;
     setDiscountStatus("", "");
+    if (discountTerms && discountInput.value.trim() !== appliedDiscount) {
+      discountTerms.hidden = true;
+    } else if (discountTerms) {
+      discountTerms.hidden = !appliedDiscount;
+    }
   });
   discountInput.addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;
@@ -728,16 +827,153 @@ export function attachSearchChrome({
     closePanels(null);
   });
 
+  let searchHighlight = searchBar.querySelector(".search-bar-highlight");
+  if (!searchHighlight) {
+    searchHighlight = document.createElement("span");
+    searchHighlight.className = "search-bar-highlight";
+    searchHighlight.setAttribute("aria-hidden", "true");
+    searchBar.prepend(searchHighlight);
+  }
+  let searchHighlightPlaced = false;
+  let pendingHighlightItem = null;
+
+  function isCompactControl(item) {
+    return item?.matches?.(".swap-stations, .when-return-clear");
+  }
+
+  function highlightTarget(item) {
+    if (!item) return null;
+    if (isCompactControl(item)) return item;
+    return item.closest(".when-return") || item;
+  }
+
+  function visibleSearchCells() {
+    return [...searchBar.querySelectorAll(".search-cell")].filter(
+      (cell) => cell.offsetParent && !cell.hidden && cell.getClientRects().length,
+    );
+  }
+
+  function highlightItemFromEvent(event) {
+    const compact = event.target.closest(".swap-stations, .when-return-clear");
+    if (compact && searchBar.contains(compact) && compact.offsetParent) return compact;
+    const nested = event.target.closest(".search-cell");
+    if (nested && searchBar.contains(nested)) return nested;
+    const returnWrap = event.target.closest(".when-return");
+    if (returnWrap) return returnWrap.querySelector(".search-cell");
+    const { clientX: x, clientY: y } = event;
+    for (const cell of visibleSearchCells()) {
+      const rect = highlightTarget(cell).getBoundingClientRect();
+      if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) return cell;
+    }
+    return null;
+  }
+
+  function activateSearchCell(cell, event) {
+    const input = cell.querySelector('input[type="text"]:not([hidden])');
+    if (input) {
+      if (event.target !== input) input.focus({ preventScroll: true });
+      return;
+    }
+    if (cell.tagName === "BUTTON" && !cell.contains(event.target)) {
+      cell.focus({ preventScroll: true });
+      cell.click();
+    }
+  }
+
+  function currentHighlightTarget() {
+    if (prefersMobileSheet()) return null;
+    if (pendingHighlightItem?.offsetParent) return highlightTarget(pendingHighlightItem);
+    const focused = document.activeElement;
+    if (focused && searchBar.contains(focused)) {
+      const compact = focused.closest(".swap-stations, .when-return-clear");
+      if (compact?.offsetParent) return compact;
+      const cell = focused.closest(".search-cell");
+      if (cell?.offsetParent) return highlightTarget(cell);
+    }
+    const actives = visibleSearchCells().filter((cell) => cell.classList.contains("is-active"));
+    const open = actives.find((cell) => cell.classList.contains("is-open"));
+    const active = open || actives[0];
+    return active ? highlightTarget(active) : null;
+  }
+
+  function moveSearchHighlight(target, { animate = true } = {}) {
+    if (!target || prefersMobileSheet()) {
+      hideSearchHighlight();
+      return;
+    }
+    const barRect = searchBar.getBoundingClientRect();
+    const rect = target.getBoundingClientRect();
+    const instant = !animate || !searchHighlightPlaced || prefersReducedMotion();
+    if (instant) searchHighlight.style.transition = "none";
+    searchHighlight.style.width = `${rect.width}px`;
+    searchHighlight.style.height = `${rect.height}px`;
+    searchHighlight.style.borderRadius = getComputedStyle(target).borderRadius;
+    searchHighlight.style.transform = `translate(${rect.left - barRect.left - searchBar.clientLeft}px, ${rect.top - barRect.top - searchBar.clientTop}px)`;
+    searchBar.classList.add("has-search-highlight");
+    searchBar.querySelectorAll(".is-highlight-target").forEach((el) => el.classList.remove("is-highlight-target"));
+    target.classList.add("is-highlight-target");
+    searchHighlight.classList.add("is-visible");
+    if (instant) {
+      searchHighlight.getBoundingClientRect();
+      searchHighlight.style.transition = "";
+    }
+    searchHighlightPlaced = true;
+  }
+
+  function hideSearchHighlight() {
+    searchBar.classList.remove("has-search-highlight");
+    searchBar.querySelectorAll(".is-highlight-target").forEach((el) => el.classList.remove("is-highlight-target"));
+    searchHighlight.classList.remove("is-visible");
+    searchHighlightPlaced = false;
+  }
+
+  function syncSearchHighlight({ animate = true } = {}) {
+    const target = currentHighlightTarget();
+    if (target) moveSearchHighlight(target, { animate });
+    else hideSearchHighlight();
+  }
+
+  searchBar.addEventListener(
+    "pointerdown",
+    (event) => {
+      if (prefersMobileSheet() || event.button) return;
+      const item = highlightItemFromEvent(event);
+      if (!item) return;
+      if (item.matches(".station-field") && !event.target.closest("input")) {
+        event.preventDefault();
+      }
+      pendingHighlightItem = item;
+      moveSearchHighlight(highlightTarget(item));
+      if (isCompactControl(item)) item.focus({ preventScroll: true });
+      else activateSearchCell(item, event);
+    },
+    true,
+  );
+  searchBar.addEventListener("pointerup", () => {
+    pendingHighlightItem = null;
+  });
+  searchBar.addEventListener("pointercancel", () => {
+    pendingHighlightItem = null;
+  });
+
   for (const input of [originInput, destinationInput]) {
     input.addEventListener("focus", () => {
       closePanels(null);
       searchBar.classList.add("is-open");
-      input.closest(".search-cell")?.classList.add("is-active");
+      const cell = input.closest(".search-cell");
+      cell?.classList.add("is-active");
+      moveSearchHighlight(cell);
     });
     input.addEventListener("blur", () => {
       input.closest(".search-cell")?.classList.remove("is-active");
+      requestAnimationFrame(() => syncSearchHighlight());
     });
   }
+
+  new ResizeObserver(() => {
+    if (searchHighlightPlaced) syncSearchHighlight({ animate: false });
+  }).observe(searchBar);
+  window.addEventListener("resize", () => syncSearchHighlight({ animate: false }));
 
   searchBar.addEventListener("focusin", (event) => {
     const cell = event.target.closest(".search-cell");
@@ -749,6 +985,7 @@ export function attachSearchChrome({
       if (openTrigger) continue;
       item.classList.remove("is-active");
     }
+    syncSearchHighlight();
   });
 
   originInput.addEventListener("change", () => {
@@ -759,6 +996,7 @@ export function attachSearchChrome({
   });
 
   function advanceAfter(input) {
+    if (prefersMobileSheet()) return;
     setTimeout(() => {
       if (input === originInput) {
         if (destinationCrs.value) return;
@@ -871,15 +1109,15 @@ export function attachSearchChrome({
     const { adults, children } = passengers.passengerCounts();
     const codes = passengers.selectedCodes();
     const people = [
-      adults ? `${adults} ${adults === 1 ? "adult" : "adults"}` : null,
-      children ? `${children} ${children === 1 ? "child" : "children"}` : null,
+      adults ? `${adults} ${adults === 1 ? "Adult" : "Adults"}` : null,
+      children ? `${children} ${children === 1 ? "Child" : "Children"}` : null,
     ].filter(Boolean);
     whoSummary.textContent = people.join(", ") || "Add travellers";
     whoSummary.classList.toggle("is-placeholder", !people.length);
 
     const names = railcardNames(codes);
     whoRailcards.textContent =
-      names.length > 1 ? `${names.length} railcards` : names[0] || "No railcard";
+      names.length > 1 ? `${names.length} Railcards` : names[0] || "No Railcard";
     whoRailcards.classList.toggle("is-placeholder", !names.length);
   }
 
@@ -952,7 +1190,7 @@ export function attachSearchChrome({
     const child = seasonPassengerInput.value === "child";
     seasonWhoSummary.textContent = child ? "Child" : "Adult";
     const hasCard = !child && seasonRailcardInput.checked;
-    seasonWhoRailcard.textContent = hasCard ? SEASON_RAILCARD.name : "No railcard";
+    seasonWhoRailcard.textContent = hasCard ? SEASON_RAILCARD.name : "No Railcard";
     seasonWhoRailcard.classList.toggle("is-placeholder", !hasCard);
   }
 
@@ -961,15 +1199,17 @@ export function attachSearchChrome({
   }
 
   function roverProduct() {
-    return ROVER_TICKETS.find((product) => product.id === roverProductInput.value) || ROVER_TICKETS[0];
+    return ROVER_TICKETS.find((product) => product.id === roverProductInput.value) || null;
   }
 
   function setRoverProduct(id) {
-    const product = ROVER_TICKETS.find((item) => item.id === id) || ROVER_TICKETS[0];
-    roverProductInput.value = product.id;
-    roverSummary.textContent = product.name;
+    const product = ROVER_TICKETS.find((item) => item.id === id) || null;
+    roverProductInput.value = product?.id || "";
+    roverSummary.textContent = product?.name || "Select a ticket";
+    roverSummary.classList.toggle("is-placeholder", !product);
+    if (roverDetail) roverDetail.hidden = !product;
     for (const button of roverOptions.querySelectorAll("button")) {
-      button.setAttribute("aria-selected", String(button.dataset.rover === product.id));
+      button.setAttribute("aria-selected", String(Boolean(product) && button.dataset.rover === product.id));
     }
   }
 
@@ -1030,6 +1270,7 @@ export function attachSearchChrome({
         ? `Avoid: ${avoidLabel}`
         : "Via/avoid";
     routeChip.classList.toggle("is-set", set);
+    routeChip.classList.toggle("is-avoid", Boolean(avoidLabel));
     routeClear.hidden = !set;
   }
 

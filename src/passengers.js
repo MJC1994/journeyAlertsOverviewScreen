@@ -41,10 +41,12 @@ export function attachPassengerControls({ adultsInput, childrenInput, listEl, ad
       updateAddButton();
       onChange?.();
     });
-    row.querySelector("select").addEventListener("change", () => onChange?.());
+    const select = row.querySelector("select");
+    select.addEventListener("change", () => onChange?.());
     listEl.appendChild(row);
     updateAddButton();
     onChange?.();
+    openRailcardSelect(select);
   }
 
   function trimRows() {
@@ -117,6 +119,18 @@ export function attachPassengerControls({ adultsInput, childrenInput, listEl, ad
 
 export function railcardNames(codes) {
   return codes.map((code) => RAILCARDS.find((card) => card.code === code)?.name || code);
+}
+
+function openRailcardSelect(select) {
+  if (typeof select.showPicker === "function") {
+    try {
+      select.showPicker();
+      return;
+    } catch {
+      // The picker opens only from a real click while the page is focused.
+    }
+  }
+  select.focus({ preventScroll: true });
 }
 
 function clampCount(value, min, max) {

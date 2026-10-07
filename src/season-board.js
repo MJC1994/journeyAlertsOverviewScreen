@@ -44,7 +44,7 @@ export function countSeasonTickets(board) {
 export function renderSeasonBoard(board) {
   return `<div class="fare-board">
     <section class="fare-section">
-      <h3>Season tickets</h3>
+      <h3>Season Tickets</h3>
       <div class="fare-grid">
         ${renderColumn("Standard", board.Standard)}
         ${renderColumn("First class", board.First)}

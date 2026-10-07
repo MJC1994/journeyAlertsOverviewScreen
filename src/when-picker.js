@@ -55,12 +55,16 @@ export function attachWhenPicker({
     wireTimePicker({
       trigger: panel.querySelector("#outward-time-trigger"),
       menu: panel.querySelector("#outward-time-menu"),
+      nativeInput: panel.querySelector("#outward-time-native"),
       input: timeInput,
+      getDate: () => dateInput.value,
     }),
     wireTimePicker({
       trigger: panel.querySelector("#return-time-trigger"),
       menu: panel.querySelector("#return-time-menu"),
+      nativeInput: panel.querySelector("#return-time-native"),
       input: returnTimeInput,
+      getDate: () => returnDateInput.value,
     }),
   ];
 
@@ -138,7 +142,9 @@ export function attachWhenPicker({
   }
 
   function menuOptions(menu) {
-    return [...menu.querySelectorAll('[role="option"]')];
+    return [...menu.querySelectorAll('[role="option"]')].filter(
+      (option) => option.getAttribute("aria-disabled") !== "true",
+    );
   }
 
   function focusMenuValue(menu, value, key) {
@@ -168,7 +174,7 @@ export function attachWhenPicker({
   panel.querySelector(".panel-sheet-body")?.addEventListener("scroll", followOpenMenu, { passive: true });
   window.addEventListener("resize", followOpenMenu);
 
-  function wireListbox({ trigger, menu, input, key, onSelect }) {
+  function wireListbox({ trigger, menu, input, key, onSelect, onOpen }) {
     const toggle = (event) => {
       event.stopPropagation();
       const willOpen = menu.hidden;
@@ -177,6 +183,7 @@ export function attachWhenPicker({
         trigger.focus();
         return;
       }
+      onOpen?.();
       menu.hidden = false;
       trigger.setAttribute("aria-expanded", "true");
       placeMenu(menu, trigger);
@@ -190,7 +197,7 @@ export function attachWhenPicker({
     });
     menu.addEventListener("click", (event) => {
       const option = event.target.closest("[role='option']");
-      if (!option) return;
+      if (!option || option.getAttribute("aria-disabled") === "true") return;
       onSelect(option);
     });
     menu.addEventListener("keydown", (event) => {
@@ -246,194 +253,47 @@ export function attachWhenPicker({
     });
   }
 
-  function wireTimePicker({ trigger, menu, input }) {
+  function wireTimePicker({ trigger, menu, input, nativeInput, getDate }) {
     menu.innerHTML = QUARTER_TIMES.map(
       (time) =>
-        `<li role="option" id="${menu.id}-${time.replace(":", "")}" data-time="${time}">${time}</li>`,
+        `<li role="option" id="${menu.id}-${time.replace(":", "")}" data-time="${time}" tabindex="-1">${time}</li>`,
     ).join("");
 
-    let typed = "";
-    let activeTime = input.value;
-    let syncing = false;
-
-    const visibleOptions = () => menuOptions(menu).filter((option) => !option.hidden);
-
-    const setDisplay = (value) => {
-      syncing = true;
-      trigger.value = value;
-      syncing = false;
-    };
-
-    const setOpen = (open) => {
-      menu.hidden = !open;
-      trigger.setAttribute("aria-expanded", String(open));
-      if (open) placeMenu(menu, trigger);
-      else trigger.removeAttribute("aria-activedescendant");
-    };
-
-    const setActive = (time) => {
-      const options = visibleOptions();
-      const match = options.find((option) => option.dataset.time === time) || options[0];
-      activeTime = match?.dataset.time || "";
-      for (const option of menuOptions(menu)) {
-        const active = option === match;
-        option.classList.toggle("is-active", active);
-        option.classList.toggle("is-selected", option.dataset.time === input.value);
-        option.setAttribute("aria-selected", String(active));
-      }
-      if (match) {
-        trigger.setAttribute("aria-activedescendant", match.id);
-        match.scrollIntoView({ block: "nearest" });
-      } else {
-        trigger.removeAttribute("aria-activedescendant");
-      }
-    };
-
-    const applyFilter = (query) => {
-      const matches = matchingTimes(query);
-      const list = matches.length ? matches : QUARTER_TIMES;
-      for (const option of menuOptions(menu)) {
-        option.hidden = Boolean(query) && matches.length > 0 && !matches.includes(option.dataset.time);
-      }
-      const guessed = parseTypedTime(query);
-      setActive(guessed && list.includes(guessed) ? guessed : list[0] || input.value);
-    };
-
-    const commit = (time = activeTime || parseTypedTime(trigger.value)) => {
-      const next = snapToQuarter(time || input.value);
-      typed = "";
+    const picker = wireListbox({
+      trigger,
+      menu,
+      input,
+      key: "time",
+      onOpen: () => {
+        const date = getDate?.() || "";
+        const next = clampTimeToSoonest(date, input.value);
+        if (next !== input.value) {
+          input.value = next;
+          keepReturnValid();
+          notify();
+        } else {
+          syncTimeAvailability(menu, nativeInput, date);
+        }
+      },
+      onSelect: (option) => {
+        if (option.getAttribute("aria-disabled") === "true") return;
+        input.value = clampTimeToSoonest(getDate?.() || "", option.dataset.time);
+        closePickers();
+        keepReturnValid();
+        notify();
+        trigger.focus();
+      },
+    });
+    menu.addEventListener("mousedown", (event) => event.preventDefault());
+    nativeInput?.addEventListener("change", () => {
+      const next = clampTimeToSoonest(getDate?.() || "", nativeInput.value);
+      if (!next) return;
       input.value = next;
-      setDisplay(formatDisplayTime(next));
-      setOpen(false);
-      applyFilter("");
-      syncOptions(menu, "time", next);
+      if (nativeInput.value !== next) nativeInput.value = next;
       keepReturnValid();
       notify();
-      trigger.focus();
-    };
-
-    const restore = () => {
-      typed = "";
-      setDisplay(formatDisplayTime(input.value));
-      setOpen(false);
-      applyFilter("");
-      syncOptions(menu, "time", input.value);
-    };
-
-    const open = (query = "") => {
-      closePickers({ trigger, menu, input, key: "time" });
-      typed = query.replace(/\D/g, "");
-      if (typed) setDisplay(formatTypedTime(typed));
-      setOpen(true);
-      applyFilter(typed);
-      if (!typed) setActive(snapToQuarter(input.value));
-    };
-
-    trigger.addEventListener("click", () => {
-      if (menu.hidden) open();
     });
-
-    trigger.addEventListener("focus", () => {
-      trigger.select();
-    });
-
-    trigger.addEventListener("blur", () => {
-      window.setTimeout(() => {
-        if (menu.contains(document.activeElement) || document.activeElement === trigger) return;
-        if (!menu.hidden) commit();
-      }, 0);
-    });
-
-    trigger.addEventListener("keydown", (event) => {
-      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-        event.preventDefault();
-        if (menu.hidden) open();
-        const options = visibleOptions();
-        if (!options.length) return;
-        const current = options.findIndex((option) => option.dataset.time === activeTime);
-        const next = event.key === "ArrowDown" ? current + 1 : current - 1;
-        const option = options[Math.max(0, Math.min(options.length - 1, next))];
-        setActive(option.dataset.time);
-        setDisplay(option.dataset.time);
-        typed = option.dataset.time.replace(":", "");
-        return;
-      }
-      if (event.key === "PageDown" || event.key === "PageUp") {
-        event.preventDefault();
-        if (menu.hidden) open();
-        const options = visibleOptions();
-        if (!options.length) return;
-        const current = Math.max(0, options.findIndex((option) => option.dataset.time === activeTime));
-        const next = current + (event.key === "PageDown" ? 4 : -4);
-        const option = options[Math.max(0, Math.min(options.length - 1, next))];
-        setActive(option.dataset.time);
-        setDisplay(option.dataset.time);
-        typed = option.dataset.time.replace(":", "");
-        return;
-      }
-      if (event.key === "Home" || event.key === "End") {
-        if (menu.hidden) return;
-        event.preventDefault();
-        const options = visibleOptions();
-        const option = event.key === "Home" ? options[0] : options[options.length - 1];
-        if (!option) return;
-        setActive(option.dataset.time);
-        setDisplay(option.dataset.time);
-        typed = option.dataset.time.replace(":", "");
-        return;
-      }
-      if (event.key === "Enter") {
-        event.preventDefault();
-        if (menu.hidden) open();
-        else commit();
-        return;
-      }
-      if (event.key === "Escape") {
-        if (menu.hidden) return;
-        event.preventDefault();
-        event.stopPropagation();
-        restore();
-        return;
-      }
-      if (event.key === "Tab") {
-        if (!menu.hidden) commit();
-        return;
-      }
-      if (event.key === "Backspace" || event.key === "Delete") {
-        const next = event.key === "Backspace" ? typed.slice(0, -1) : "";
-        typed = next;
-        setDisplay(formatTypedTime(typed));
-        event.preventDefault();
-        if (menu.hidden) open(typed);
-        else applyFilter(typed);
-        return;
-      }
-      if (/^\d$/.test(event.key)) {
-        event.preventDefault();
-        typed = `${typed}${event.key}`.replace(/\D/g, "").slice(0, 4);
-        setDisplay(formatTypedTime(typed));
-        if (menu.hidden) open(typed);
-        else applyFilter(typed);
-      }
-    });
-
-    trigger.addEventListener("input", () => {
-      if (syncing) return;
-      typed = trigger.value.replace(/\D/g, "").slice(0, 4);
-      const formatted = formatTypedTime(typed);
-      if (trigger.value !== formatted) setDisplay(formatted);
-      if (menu.hidden) open(typed);
-      else applyFilter(typed);
-    });
-
-    menu.addEventListener("mousedown", (event) => event.preventDefault());
-    menu.addEventListener("click", (event) => {
-      const option = event.target.closest("[role='option']");
-      if (!option || option.hidden) return;
-      commit(option.dataset.time);
-    });
-
-    return { trigger, menu, input, key: "time", restore };
+    return picker;
   }
 
   function chooseDate(iso) {
@@ -485,25 +345,30 @@ export function attachWhenPicker({
   }
 
   function render() {
-    monthLabel.textContent = monthTitle(viewMonth);
-    nextMonthLabel.textContent = monthTitle(shiftMonth(viewMonth, 1));
-    renderMonth(grids[0], viewMonth);
-    renderMonth(grids[1], shiftMonth(viewMonth, 1));
-
-    timeInput.value = snapToQuarter(timeInput.value);
+    const before = `${timeInput.value}|${returnDateInput.value}|${returnTimeInput.value}`;
+    timeInput.value = clampTimeToSoonest(dateInput.value, timeInput.value);
     if (oneWay) {
       returnTimeInput.value = "";
     } else {
       if (!returnTimeInput.value) returnTimeInput.value = timeInput.value;
-      returnTimeInput.value = snapToQuarter(returnTimeInput.value);
+      returnTimeInput.value = clampTimeToSoonest(returnDateInput.value, returnTimeInput.value);
+      keepReturnValid();
     }
+    const adjusted = `${timeInput.value}|${returnDateInput.value}|${returnTimeInput.value}` !== before;
+
+    monthLabel.textContent = monthTitle(viewMonth);
+    nextMonthLabel.textContent = monthTitle(shiftMonth(viewMonth, 1));
+    renderMonth(grids[0], viewMonth);
+    renderMonth(grids[1], shiftMonth(viewMonth, 1));
     if (!outwardModeInput.value) outwardModeInput.value = "Depart";
     if (!returnModeInput.value) returnModeInput.value = "Depart";
 
-    if (document.activeElement !== outwardTime) outwardTime.value = formatDisplayTime(timeInput.value);
-    if (document.activeElement !== returnTime) {
-      returnTime.value = formatDisplayTime(returnTimeInput.value || timeInput.value);
-    }
+    paintTimeControl(outwardTime, panel.querySelector("#outward-time-native"), timeInput.value);
+    paintTimeControl(
+      returnTime,
+      panel.querySelector("#return-time-native"),
+      oneWay ? "" : returnTimeInput.value || timeInput.value,
+    );
     const openReturn = !oneWay && openReturnInput.checked;
     const fromName = originInput?.value?.trim() || "";
     const toName = destinationInput?.value?.trim() || "";
@@ -514,6 +379,16 @@ export function attachWhenPicker({
     returnModeLabel.textContent = MODE_LABELS[returnModeInput.value] || MODE_LABELS.Depart;
     syncOptions(panel.querySelector("#outward-mode-menu"), "mode", outwardModeInput.value);
     syncOptions(panel.querySelector("#return-mode-menu"), "mode", returnModeInput.value);
+    syncTimeAvailability(
+      panel.querySelector("#outward-time-menu"),
+      panel.querySelector("#outward-time-native"),
+      dateInput.value,
+    );
+    syncTimeAvailability(
+      panel.querySelector("#return-time-menu"),
+      panel.querySelector("#return-time-native"),
+      returnDateInput.value,
+    );
     syncOptions(panel.querySelector("#outward-time-menu"), "time", timeInput.value);
     syncOptions(panel.querySelector("#return-time-menu"), "time", returnTimeInput.value);
 
@@ -559,6 +434,7 @@ export function attachWhenPicker({
     prev.disabled = viewMonth <= todayMonth;
     syncCalendarTab(moveCalendarFocus);
     moveCalendarFocus = false;
+    if (adjusted) onChange?.();
   }
 
   function calendarDays() {
@@ -715,26 +591,59 @@ export function attachWhenPicker({
   };
 }
 
+function layoutShift() {
+  const viewport = window.visualViewport;
+  if (!viewport || viewport.offsetTop === 0) return 0;
+  const sheet = document.querySelector(".search-panel.panel-sheet:not([hidden])");
+  const origin = sheet?.getBoundingClientRect().top ?? 0;
+  return Math.abs(origin + viewport.offsetTop) + 1 < Math.abs(origin) ? viewport.offsetTop : 0;
+}
+
+function visibleFrame() {
+  const viewport = window.visualViewport;
+  const height = viewport?.height ?? window.innerHeight;
+  const width = viewport?.width ?? window.innerWidth;
+  const top = viewport?.offsetTop ?? 0;
+  const left = viewport?.offsetLeft ?? 0;
+  return {
+    top,
+    left,
+    bottom: top + height,
+    right: left + width,
+    keyboard: Math.max(0, window.innerHeight - top - height),
+  };
+}
+
 function placeMenu(menu, trigger) {
   const gap = 6;
   const margin = 12;
+  const frame = visibleFrame();
+  const shift = layoutShift();
   const rect = trigger.getBoundingClientRect();
-  const spaceBelow = window.innerHeight - rect.bottom - gap - margin;
-  const spaceAbove = rect.top - gap - margin;
-  const openBelow = spaceBelow >= 180 || spaceBelow >= spaceAbove;
-  const room = Math.max(0, openBelow ? spaceBelow : spaceAbove);
-  const width = rect.width;
-  const left = Math.min(Math.max(margin, rect.left), Math.max(margin, window.innerWidth - width - margin));
+  const triggerTop = rect.top + shift;
+  const triggerBottom = rect.bottom + shift;
+  const triggerLeft = rect.left + (shift ? frame.left : 0);
+  const spaceBelow = frame.bottom - triggerBottom - gap - margin;
+  const spaceAbove = triggerTop - frame.top - gap - margin;
+  const openBelow = spaceBelow >= 160 || spaceBelow >= spaceAbove;
+  const width = Math.max(rect.width, 108);
+  const left = Math.min(
+    Math.max(frame.left + margin, triggerLeft),
+    Math.max(frame.left + margin, frame.right - width - margin),
+  );
   menu.style.left = `${left}px`;
   menu.style.width = `${width}px`;
-  menu.style.maxHeight = `${Math.min(320, room)}px`;
-  if (openBelow) {
-    menu.style.top = `${rect.bottom + gap}px`;
+  const room = Math.min(320, Math.max(0, openBelow ? spaceBelow : spaceAbove));
+  if (room >= 140) {
+    menu.style.maxHeight = `${room}px`;
     menu.style.bottom = "auto";
-  } else {
-    menu.style.top = "auto";
-    menu.style.bottom = `${window.innerHeight - rect.top + gap}px`;
+    menu.style.top = openBelow ? `${triggerBottom + gap}px` : `${Math.max(frame.top + margin, triggerTop - gap - room)}px`;
+    return;
   }
+  const height = Math.min(320, Math.max(160, (frame.bottom - frame.top) * 0.5));
+  menu.style.maxHeight = `${height}px`;
+  menu.style.top = `${Math.max(frame.top + margin, frame.bottom - margin - height)}px`;
+  menu.style.bottom = "auto";
 }
 
 function syncOptions(menu, key, value) {
@@ -744,6 +653,20 @@ function syncOptions(menu, key, value) {
     button.setAttribute("aria-selected", String(selected));
     button.classList.toggle("is-selected", selected);
   }
+}
+
+function syncTimeAvailability(menu, nativeInput, date) {
+  const soonest = isTodayDate(date) ? soonestSearchTime() : "";
+  if (menu) {
+    for (const option of menu.querySelectorAll("[role='option']")) {
+      const disabled = Boolean(soonest && option.dataset.time < soonest);
+      option.setAttribute("aria-disabled", String(disabled));
+      option.classList.toggle("is-disabled", disabled);
+    }
+  }
+  if (!nativeInput) return;
+  if (soonest) nativeInput.min = soonest;
+  else nativeInput.removeAttribute("min");
 }
 
 function quarterTimes() {
@@ -779,28 +702,6 @@ export function isDefaultOutbound(dateInput, timeInput) {
   return isTodayDate(dateInput?.value) && isNowTime(timeInput?.value, timeInput);
 }
 
-function formatTypedTime(digits) {
-  const clean = String(digits || "").replace(/\D/g, "").slice(0, 4);
-  if (clean.length <= 2) return clean;
-  return `${clean.slice(0, 2)}:${clean.slice(2)}`;
-}
-
-function matchingTimes(query) {
-  const digits = String(query || "").replace(/\D/g, "");
-  if (!digits) return QUARTER_TIMES;
-  return QUARTER_TIMES.filter((time) => time.replace(":", "").startsWith(digits));
-}
-
-function parseTypedTime(raw) {
-  const digits = String(raw || "").replace(/\D/g, "").slice(0, 4);
-  if (!digits) return null;
-  const four = digits.length <= 2 ? `${digits.padStart(2, "0")}00` : digits.length === 3 ? `${digits}0` : digits;
-  const hours = Number(four.slice(0, 2));
-  const minutes = Number(four.slice(2, 4));
-  if (Number.isNaN(hours) || Number.isNaN(minutes) || hours > 23 || minutes > 59) return null;
-  return snapToQuarter(`${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`);
-}
-
 export function snapToQuarter(hhmm) {
   if (!hhmm) return "12:00";
   const [hoursPart, minutesPart] = hhmm.split(":");
@@ -811,6 +712,24 @@ export function snapToQuarter(hhmm) {
     hours = (hours + 1) % 24;
   }
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
+export function soonestSearchTime(from = new Date()) {
+  const slot = 15 * 60 * 1000;
+  const next = new Date(Math.ceil(from.getTime() / slot) * slot);
+  if (formatISO(next) !== formatISO(from)) return "23:45";
+  return formatClock(next);
+}
+
+function clampTimeToSoonest(date, time) {
+  const snapped = snapToQuarter(time);
+  if (!isTodayDate(date)) return snapped;
+  const soonest = soonestSearchTime();
+  return snapped < soonest ? soonest : snapped;
+}
+
+function formatClock(date) {
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
 function monthStart(date) {
@@ -845,6 +764,13 @@ function formatISO(date) {
 function formatDisplayTime(value) {
   if (!value) return "—";
   return value;
+}
+
+function paintTimeControl(trigger, nativeInput, value) {
+  const label = trigger?.querySelector(".mini-picker-time-label");
+  if (label) label.textContent = formatDisplayTime(value);
+  if (!nativeInput || document.activeElement === nativeInput) return;
+  nativeInput.value = value || "";
 }
 
 function formatSpokenDate(value) {

@@ -399,8 +399,8 @@ export function hydrateStep(root, store) {
   const avoid = root.querySelector("#v3-avoid");
   const avoidNlc = root.querySelector("#v3-avoid-nlc");
   if (via && avoid) {
-    attachStationPicker(via, viaNlc);
-    attachStationPicker(avoid, avoidNlc);
+    attachStationPicker(via, viaNlc, { savedPlaces: false });
+    attachStationPicker(avoid, avoidNlc, { savedPlaces: false });
     const sync = () =>
       store.set({
         viaName: via.value,

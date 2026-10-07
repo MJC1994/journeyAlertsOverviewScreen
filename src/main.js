@@ -6,7 +6,7 @@ import { renderRoverBoard } from "./rover-board.js";
 import { attachPassengerControls, railcardNames } from "./passengers.js";
 import { attachSearchChrome } from "./search-ui.js";
 import { attachScrollLock } from "./scroll-lock.js";
-import { snapToQuarter } from "./when-picker.js";
+import { snapToQuarter, soonestSearchTime } from "./when-picker.js";
 import { stationSearch } from "fuzzy-stations";
 
 const DEMO_SEARCH_MESSAGE = "Live search is disabled in this demo.";
@@ -41,9 +41,12 @@ let searchedStadium = "";
 
 attachScrollLock();
 attachStationPicker(originInput, originCrs, { sheet: true });
-attachStationPicker(destinationInput, destinationCrs, { stadiums: true, sheet: true });
-attachStationPicker(viaInput, viaNlc);
-attachStationPicker(avoidInput, avoidNlc);
+attachStationPicker(destinationInput, destinationCrs, {
+  stadiums: () => !page.classList.contains("is-season"),
+  sheet: true,
+});
+attachStationPicker(viaInput, viaNlc, { savedPlaces: false });
+attachStationPicker(avoidInput, avoidNlc, { savedPlaces: false });
 const passengers = attachPassengerControls({
   adultsInput,
   childrenInput,
@@ -70,11 +73,51 @@ const searchUi = attachSearchChrome({
 
 const now = new Date();
 dateInput.value = formatDate(now);
-timeInput.value = snapToQuarter(formatTime(now));
+timeInput.value = soonestSearchTime(now);
 dateInput.dataset.defaultValue = dateInput.value;
 timeInput.dataset.defaultValue = timeInput.value;
 returnDateInput.value = "";
 returnTimeInput.value = "";
+
+const originError = document.getElementById("origin-error");
+const destinationError = document.getElementById("destination-error");
+const originCell = originInput.closest(".search-cell");
+const destinationCell = destinationInput.closest(".search-cell");
+
+function paintStationError(input, cell, errorEl, show) {
+  cell?.classList.toggle("is-invalid", show);
+  errorEl.hidden = !show;
+  if (show) input.setAttribute("aria-invalid", "true");
+  else input.removeAttribute("aria-invalid");
+}
+
+function showMissingStationErrors() {
+  const originMissing = !originCrs.value;
+  const destinationMissing = !destinationCrs.value;
+  paintStationError(originInput, originCell, originError, originMissing);
+  paintStationError(destinationInput, destinationCell, destinationError, destinationMissing);
+  const first = originMissing ? originInput : destinationMissing ? destinationInput : null;
+  first?.focus();
+  return Boolean(first);
+}
+
+function syncStationErrors() {
+  if (originError.hidden && destinationError.hidden) return;
+  paintStationError(originInput, originCell, originError, !originCrs.value);
+  paintStationError(destinationInput, destinationCell, destinationError, !destinationCrs.value);
+}
+
+for (const [input, hidden] of [
+  [originInput, originCrs],
+  [destinationInput, destinationCrs],
+]) {
+  input.addEventListener("input", syncStationErrors);
+  input.addEventListener("change", syncStationErrors);
+  hidden.addEventListener("change", syncStationErrors);
+}
+document.getElementById("swap-stations")?.addEventListener("click", () => {
+  queueMicrotask(syncStationErrors);
+});
 
 dateInput.addEventListener("change", keepReturnAfterOutward);
 timeInput.addEventListener("change", keepReturnAfterOutward);
@@ -95,8 +138,8 @@ form.addEventListener("submit", async (event) => {
     return;
   }
 
-  if (!originCrs.value || !destinationCrs.value) {
-    setStatus("Choose an origin and destination from the station list.", true);
+  if (showMissingStationErrors()) {
+    setStatus("");
     return;
   }
 
@@ -397,8 +440,8 @@ function optionalStationError(input, hidden, label) {
 
 function passengerSummary(adults, children, railcards) {
   const people = [
-    adults ? `${adults} ${adults === 1 ? "adult" : "adults"}` : null,
-    children ? `${children} ${children === 1 ? "child" : "children"}` : null,
+    adults ? `${adults} ${adults === 1 ? "Adult" : "Adults"}` : null,
+    children ? `${children} ${children === 1 ? "Child" : "Children"}` : null,
   ].filter(Boolean);
   const cards = railcardNames(railcards);
   return [...people, ...cards].join(" · ");

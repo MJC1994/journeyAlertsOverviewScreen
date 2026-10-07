@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Euros Journey Planner</title>
+    <title>Journey Planner</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -14,7 +14,7 @@
   </head>
   <body>
     <header class="site-header">
-      <a class="wordmark" href="/">Euros Journey Planner</a>
+      <a class="wordmark" href="/">Journey Planner</a>
     </header>
 
     <main class="page">
@@ -22,29 +22,24 @@
         <div class="hero-copy">
           <div class="mode-switch pill-switch" role="tablist" aria-label="Search mode">
             <span class="pill-switch-pill" aria-hidden="true"></span>
-            <button type="button" id="mode-tickets" role="tab" aria-selected="true">Day tickets</button>
-            <button type="button" id="mode-season" role="tab" aria-selected="false">Season tickets</button>
+            <button type="button" id="mode-tickets" role="tab" aria-selected="true">Day Tickets</button>
+            <button type="button" id="mode-season" role="tab" aria-selected="false">Season Tickets</button>
             <button type="button" id="mode-others" role="tab" aria-selected="false">Others</button>
           </div>
         </div>
 
         <form id="journey-form" class="search-form" autocomplete="off">
-          <div class="others-intro" id="others-intro">
-            <label class="others-product">
-              <input type="radio" name="others-product" value="rover" checked />
-              <span>
-                <span class="others-product-title">Rover tickets</span>
-                <span class="others-product-sub">Unlimited travel within a specified area</span>
-              </span>
-            </label>
-          </div>
           <div class="search-shell">
           <div class="search-bar" id="search-bar">
-            <button type="button" class="search-cell" id="rover-trigger" data-cell="rover" aria-expanded="false" aria-haspopup="listbox">
+            <button type="button" class="search-cell" id="rover-trigger" data-cell="rover" aria-expanded="false" aria-haspopup="listbox" aria-controls="rover-panel">
               <span class="cell-label">Rover</span>
-              <span class="cell-value" id="rover-summary">All Line rover (14 days)</span>
+              <span class="cell-meta">
+                <span class="cell-value is-placeholder" id="rover-summary">Select a ticket</span>
+                <span class="cell-value is-placeholder" id="rover-detail" hidden>Unlimited travel within a specified area</span>
+              </span>
+              <span class="cell-caret" aria-hidden="true">▾</span>
             </button>
-            <input id="rover-product" type="hidden" value="all-line-14" />
+            <input id="rover-product" type="hidden" value="" />
             <div class="search-rule rover-rule" aria-hidden="true"></div>
 
             <div class="station-pair">
@@ -57,7 +52,9 @@
                 spellcheck="false"
                 aria-autocomplete="list"
                 aria-controls="origin-suggestions"
+                aria-errormessage="origin-error"
               />
+              <p class="station-error" id="origin-error" hidden>Choose a station to leave from</p>
               <input id="origin-crs" type="hidden" name="origin" />
             </div>
 
@@ -79,7 +76,9 @@
                 spellcheck="false"
                 aria-autocomplete="list"
                 aria-controls="destination-suggestions"
+                aria-errormessage="destination-error"
               />
+              <p class="station-error" id="destination-error" hidden>Choose a station to go to</p>
               <input id="destination-crs" type="hidden" name="destination" />
             </div>
             </div>
@@ -127,32 +126,38 @@
             <button type="button" class="search-cell" id="who-trigger" data-cell="who">
               <span class="cell-label">Who</span>
               <span class="cell-meta">
-                <span class="cell-value" id="who-summary">1 adult</span>
-                <span class="cell-value is-placeholder" id="who-railcards">No railcard</span>
+                <span class="cell-value" id="who-summary">1 Adult</span>
+                <span class="cell-value is-placeholder" id="who-railcards">No Railcard</span>
               </span>
             </button>
 
             <div class="search-rule season-rule" aria-hidden="true"></div>
 
-            <button type="button" class="search-cell" id="season-start-trigger" data-cell="season-start" aria-expanded="false">
+            <button type="button" class="search-cell" id="season-start-trigger" data-cell="season-start" aria-expanded="false" aria-haspopup="dialog" aria-controls="season-start-panel">
               <span class="cell-label">Starting</span>
-              <span class="cell-value" id="season-start-summary">Today</span>
+              <span class="cell-meta">
+                <span class="cell-value" id="season-start-summary">Today</span>
+              </span>
             </button>
 
             <div class="search-rule season-rule season-until-rule" aria-hidden="true"></div>
 
-            <button type="button" class="search-cell" id="season-until-trigger" data-cell="season-until" aria-expanded="false" hidden>
+            <button type="button" class="search-cell" id="season-until-trigger" data-cell="season-until" aria-expanded="false" hidden aria-haspopup="dialog" aria-controls="season-until-panel">
               <span class="cell-label">Until</span>
-              <span class="cell-value is-placeholder" id="season-until-summary">Add date</span>
+              <span class="cell-meta">
+                <span class="cell-value is-placeholder" id="season-until-summary">Add date</span>
+              </span>
             </button>
 
             <div class="search-rule others-mid-rule" aria-hidden="true"></div>
             <div class="search-rule season-rule" aria-hidden="true"></div>
 
-            <button type="button" class="search-cell" id="season-who-trigger" data-cell="season-who" aria-expanded="false">
-              <span class="cell-label">Passenger</span>
-              <span class="cell-value" id="season-who-summary">Adult</span>
-              <span class="cell-value is-placeholder" id="season-who-railcard">No railcard</span>
+            <button type="button" class="search-cell" id="season-who-trigger" data-cell="season-who" aria-expanded="false" aria-haspopup="dialog" aria-controls="season-who-panel">
+              <span class="cell-label">Who</span>
+              <span class="cell-meta">
+                <span class="cell-value" id="season-who-summary">Adult</span>
+                <span class="cell-value is-placeholder" id="season-who-railcard">No Railcard</span>
+              </span>
             </button>
           </div>
 
@@ -170,6 +175,9 @@
             </header>
             <div class="panel-sheet-body">
               <div class="rover-options" id="rover-options" role="listbox" aria-label="Rover ticket"></div>
+            </div>
+            <div class="panel-sheet-foot">
+              <button type="button" class="when-done" data-close-panel>Done</button>
             </div>
           </div>
 
@@ -229,25 +237,11 @@
                     </ul>
                   </div>
                   <div class="mini-picker mini-picker-time" id="outward-time-picker">
-                    <div class="mini-picker-field">
-                      <input
-                        id="outward-time-trigger"
-                        class="mini-picker-trigger mini-picker-time-input"
-                        type="text"
-                        inputmode="numeric"
-                        autocomplete="off"
-                        spellcheck="false"
-                        maxlength="5"
-                        value="12:00"
-                        role="combobox"
-                        aria-autocomplete="list"
-                        aria-haspopup="listbox"
-                        aria-expanded="false"
-                        aria-controls="outward-time-menu"
-                        aria-label="Outbound time"
-                      />
+                    <button type="button" class="mini-picker-trigger mini-picker-time-button" id="outward-time-trigger" aria-haspopup="listbox" aria-expanded="false" aria-controls="outward-time-menu" aria-label="Outbound time">
+                      <span class="mini-picker-time-label">12:00</span>
                       <span class="mini-picker-caret" aria-hidden="true">▾</span>
-                    </div>
+                    </button>
+                    <input class="mini-picker-native-time" id="outward-time-native" type="time" step="900" value="12:00" aria-label="Outbound time" />
                     <ul class="mini-picker-menu picker-times" id="outward-time-menu" hidden role="listbox" aria-label="Outbound time"></ul>
                   </div>
                 </div>
@@ -277,25 +271,11 @@
                     </ul>
                   </div>
                   <div class="mini-picker mini-picker-time" id="return-time-picker">
-                    <div class="mini-picker-field">
-                      <input
-                        id="return-time-trigger"
-                        class="mini-picker-trigger mini-picker-time-input"
-                        type="text"
-                        inputmode="numeric"
-                        autocomplete="off"
-                        spellcheck="false"
-                        maxlength="5"
-                        value="16:00"
-                        role="combobox"
-                        aria-autocomplete="list"
-                        aria-haspopup="listbox"
-                        aria-expanded="false"
-                        aria-controls="return-time-menu"
-                        aria-label="Return time"
-                      />
+                    <button type="button" class="mini-picker-trigger mini-picker-time-button" id="return-time-trigger" aria-haspopup="listbox" aria-expanded="false" aria-controls="return-time-menu" aria-label="Return time">
+                      <span class="mini-picker-time-label">16:00</span>
                       <span class="mini-picker-caret" aria-hidden="true">▾</span>
-                    </div>
+                    </button>
+                    <input class="mini-picker-native-time" id="return-time-native" type="time" step="900" value="16:00" aria-label="Return time" />
                     <ul class="mini-picker-menu picker-times" id="return-time-menu" hidden role="listbox" aria-label="Return time"></ul>
                   </div>
                 </div>
@@ -398,6 +378,9 @@
               </div>
             </div>
             </div>
+            <div class="panel-sheet-foot">
+              <button type="button" class="when-done" data-close-panel>Done</button>
+            </div>
           </div>
 
           <div class="search-panel when-panel" id="season-until-panel" hidden>
@@ -429,13 +412,15 @@
               </div>
             </div>
             </div>
+            <div class="panel-sheet-foot">
+              <button type="button" class="when-done" data-close-panel>Done</button>
+            </div>
           </div>
 
           <div class="search-panel who-panel" id="season-who-panel" hidden>
             <header class="panel-sheet-head">
               <div class="panel-sheet-copy">
-                <p class="panel-sheet-eyebrow">Season</p>
-                <h2 class="panel-sheet-title">Passenger</h2>
+                <h2 class="panel-sheet-title">Who’s going?</h2>
               </div>
               <button type="button" class="panel-sheet-close" data-close-panel aria-label="Close passenger picker">
                 <svg viewBox="0 0 32 32" width="18" height="18" aria-hidden="true">
@@ -489,6 +474,7 @@
             <div class="filter-chips">
             <div class="filter-chip" id="route-chip">
               <button type="button" class="chip-main" id="route-trigger" aria-expanded="false">
+                <span class="chip-icon" aria-hidden="true"></span>
                 <span id="route-chip-label">Via/avoid</span>
               </button>
               <button type="button" class="chip-clear" id="route-clear" hidden aria-label="Remove via or avoid">
@@ -499,7 +485,8 @@
             </div>
             <div class="filter-chip" id="discount-chip">
               <button type="button" class="chip-main" id="discount-trigger" aria-expanded="false">
-                <span id="discount-chip-label">+ Discount code</span>
+                <span class="chip-icon" aria-hidden="true"></span>
+                <span id="discount-chip-label">Discount code</span>
               </button>
               <button type="button" class="chip-clear" id="discount-clear" hidden aria-label="Remove discount code">
                 <svg viewBox="0 0 32 32" width="12" height="12" aria-hidden="true">
@@ -509,7 +496,7 @@
             </div>
             </div>
             <div class="search-actions">
-            <button type="button" class="search-secondary search-tickets" id="search-tickets">Search tickets</button>
+            <button type="button" class="search-secondary search-tickets" id="search-tickets">Search Tickets</button>
             <button type="submit" class="search-submit">
               <svg viewBox="0 0 32 32" width="16" height="16" aria-hidden="true">
                 <path
@@ -518,7 +505,7 @@
                 />
               </svg>
               <span class="search-submit-label-desk">Search Trains and Times</span>
-              <span class="search-submit-label-mobile">Search Trains and times</span>
+              <span class="search-submit-label-mobile">Search Trains and Times</span>
               <span class="search-submit-label-compact">Search</span>
               <span class="search-submit-label-season">Search Seasons</span>
             </button>
@@ -589,19 +576,24 @@
               </button>
             </header>
             <div class="panel-sheet-body">
-            <label for="discount-code">Discount code</label>
             <div class="discount-row">
-              <input
-                id="discount-code"
-                name="discount-code"
-                type="text"
-                placeholder="Enter code"
-                spellcheck="false"
-                autocomplete="off"
-              />
+              <div class="discount-field" id="discount-field">
+                <label for="discount-code">Discount code</label>
+                <input
+                  id="discount-code"
+                  name="discount-code"
+                  type="text"
+                  placeholder="Enter code"
+                  spellcheck="false"
+                  autocomplete="off"
+                />
+              </div>
               <button type="button" class="discount-apply" id="discount-apply">Apply</button>
             </div>
             <p class="discount-status" id="discount-status" hidden></p>
+            <p class="discount-terms" id="discount-terms" hidden>
+              50% off any ticket, valid on Southeastern service, terms and conditions apply
+            </p>
             </div>
             <div class="panel-sheet-foot">
               <button type="button" class="when-done" data-close-panel>Done</button>

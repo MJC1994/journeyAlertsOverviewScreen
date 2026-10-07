@@ -36,7 +36,8 @@ function savedIcon(kind) {
   return `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true" focusable="false">${path}</svg>`;
 }
 
-export function attachStationPicker(input, hidden, { initialCrs, stadiums = false, sheet = false } = {}) {
+export function attachStationPicker(input, hidden, { initialCrs, stadiums = false, sheet = false, savedPlaces = true } = {}) {
+  const includeStadiums = () => (typeof stadiums === "function" ? stadiums() : Boolean(stadiums));
   const list = document.createElement("ul");
   list.id = `${input.id}-suggestions`;
   list.className = "station-suggestions";
@@ -114,7 +115,9 @@ export function attachStationPicker(input, hidden, { initialCrs, stadiums = fals
         mode === "browse"
           ? nearestStatus === "loading"
             ? "Finding stations near you…"
-            : "No saved or nearby stations yet. Start typing to search."
+            : savedPlaces
+              ? "No saved or nearby stations yet. Start typing to search."
+              : "No nearby stations yet. Start typing to search."
           : "No matching stations";
       list.appendChild(empty);
       list.hidden = false;
@@ -187,12 +190,14 @@ export function attachStationPicker(input, hidden, { initialCrs, stadiums = fals
       entries.push({ group, station, badge, meta, saved });
     };
 
-    const home = getHomeStation();
-    const work = getWorkStation();
-    if (home) push("Saved places", home, "Home", null, "home");
-    if (work) push("Saved places", work, "Work", null, "work");
+    if (savedPlaces) {
+      const home = getHomeStation();
+      const work = getWorkStation();
+      if (home) push("Saved places", home, "Home", null, "home");
+      if (work) push("Saved places", work, "Work", null, "work");
+    }
 
-    if (stadiums) entries.push(...STADIUMS.map(stadiumEntry).filter(Boolean));
+    if (includeStadiums()) entries.push(...STADIUMS.map(stadiumEntry).filter(Boolean));
 
     for (const item of nearest) {
       push("Nearest", item.station, item.station.crs, formatDistance(item.km));
@@ -207,6 +212,7 @@ export function attachStationPicker(input, hidden, { initialCrs, stadiums = fals
 
   async function showBrowse() {
     mode = "browse";
+    list.classList.remove("is-keyboard");
     const cached = getCachedPosition();
     items = buildBrowseItems(cached ? nearestStations(cached) : []);
     activeIndex = items.length ? 0 : -1;
@@ -260,7 +266,7 @@ export function attachStationPicker(input, hidden, { initialCrs, stadiums = fals
     }
     mode = "search";
     nearestStatus = "idle";
-    const stadiumItems = stadiums ? searchStadiums(trimmed).map(stadiumEntry).filter(Boolean) : [];
+    const stadiumItems = includeStadiums() ? searchStadiums(trimmed).map(stadiumEntry).filter(Boolean) : [];
     const stationItems = searchStations(trimmed, { limit: 8 })
       .filter((result) => result.station.nlc)
       .map((result) => ({
@@ -319,6 +325,13 @@ export function attachStationPicker(input, hidden, { initialCrs, stadiums = fals
     if (pairState === "open" || !prefersMobileSheet()) search(input.value);
   });
 
+  if (pairEntry && field) {
+    field.addEventListener("click", () => {
+      if (!prefersMobileSheet() || pairState !== "closed") return;
+      openPairSheet(input);
+    });
+  }
+
   input.addEventListener("keydown", (event) => {
     if (pairEntry && prefersMobileSheet() && pairState === "closed" && event.key === "Enter") {
       event.preventDefault();
@@ -339,7 +352,12 @@ export function attachStationPicker(input, hidden, { initialCrs, stadiums = fals
     if (!options.length) return;
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      activeIndex = (activeIndex + 1) % options.length;
+      const alreadyNavigating = list.classList.contains("is-keyboard") || list.classList.contains("is-searching");
+      if (alreadyNavigating) {
+        activeIndex = (activeIndex + 1) % options.length;
+      } else {
+        activeIndex = activeIndex < 0 ? 0 : activeIndex;
+      }
       list.classList.add("is-keyboard");
       highlight();
     } else if (event.key === "ArrowUp") {
@@ -553,24 +571,11 @@ function focusPairField(entry) {
 
 function afterPairSelect(entry) {
   syncStandIn(entry);
-  const origin = pairFields.find((field) => field.input.id === "origin");
-  const destination = pairFields.find((field) => field.input.id === "destination");
-  if (!origin || !destination) return;
-  const both = Boolean(origin.hidden.value && destination.hidden.value);
-
-  if (pairStartedOn === origin && entry === origin && !destination.hidden.value) {
-    focusPairField(destination);
-    return;
-  }
-  if (pairStartedOn === destination && entry === destination && !origin.hidden.value) {
-    focusPairField(origin);
-    return;
-  }
-  if (both) closePairSheet({ restoreFocus: focusWhenTrigger });
-  else focusPairField(entry === origin ? destination : origin);
+  showPairList(entry);
 }
 
 function maybeFocusWhen() {
+  if (prefersMobileSheet()) return;
   const origin = pairFields.find((field) => field.input.id === "origin");
   const destination = pairFields.find((field) => field.input.id === "destination");
   if (origin?.hidden.value && destination?.hidden.value) focusWhenTrigger();
