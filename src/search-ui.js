@@ -656,9 +656,11 @@ export function attachSearchChrome({
       }
     }
 
+    closeWhen();
     pendingHighlightItem = whoTrigger;
-    if (!prefersMobileSheet()) moveSearchHighlight(whoTrigger);
-    openWho();
+    whoTrigger.focus({ preventScroll: true });
+    whoTrigger.classList.add("is-active");
+    moveSearchHighlight(whoTrigger);
     requestAnimationFrame(() => {
       pendingHighlightItem = null;
     });
