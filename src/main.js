@@ -7,6 +7,7 @@ import { attachPassengerControls, railcardNames } from "./passengers.js";
 import { attachSearchChrome } from "./search-ui.js";
 import { attachScrollLock } from "./scroll-lock.js";
 import { snapToQuarter, soonestSearchTime } from "./when-picker.js";
+import { attachFeatureFlags, isFeatureEnabled } from "./feature-flags.js";
 import { stationSearch } from "fuzzy-stations";
 
 const DEMO_SEARCH_MESSAGE = "Live search is disabled in this demo.";
@@ -40,10 +41,15 @@ let lastSeasonQuery = null;
 let searchedStadium = "";
 
 attachScrollLock();
-attachStationPicker(originInput, originCrs, { sheet: true });
-attachStationPicker(destinationInput, destinationCrs, {
-  stadiums: () => !page.classList.contains("is-season"),
+attachFeatureFlags();
+attachStationPicker(originInput, originCrs, {
   sheet: true,
+  savedPlaces: () => isFeatureEnabled("showSavedStations"),
+});
+attachStationPicker(destinationInput, destinationCrs, {
+  stadiums: () => isFeatureEnabled("showStadiums") && !page.classList.contains("is-season"),
+  sheet: true,
+  savedPlaces: () => isFeatureEnabled("showSavedStations"),
 });
 attachStationPicker(viaInput, viaNlc, { savedPlaces: false });
 attachStationPicker(avoidInput, avoidNlc, { savedPlaces: false });
@@ -212,6 +218,12 @@ form.addEventListener("submit", async (event) => {
   page.classList.remove("has-results");
   resultsEl.hidden = true;
   resultsEl.innerHTML = "";
+
+  if (!isFeatureEnabled("allowSearch")) {
+    setStatus(DEMO_SEARCH_MESSAGE, true);
+    return;
+  }
+
   setStatus("Searching journeys…");
 
   try {

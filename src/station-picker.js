@@ -38,6 +38,7 @@ function savedIcon(kind) {
 
 export function attachStationPicker(input, hidden, { initialCrs, stadiums = false, sheet = false, savedPlaces = true } = {}) {
   const includeStadiums = () => (typeof stadiums === "function" ? stadiums() : Boolean(stadiums));
+  const includeSavedPlaces = () => (typeof savedPlaces === "function" ? savedPlaces() : Boolean(savedPlaces));
   const list = document.createElement("ul");
   list.id = `${input.id}-suggestions`;
   list.className = "station-suggestions";
@@ -115,7 +116,7 @@ export function attachStationPicker(input, hidden, { initialCrs, stadiums = fals
         mode === "browse"
           ? nearestStatus === "loading"
             ? "Finding stations near you…"
-            : savedPlaces
+            : includeSavedPlaces()
               ? "No saved or nearby stations yet. Start typing to search."
               : "No nearby stations yet. Start typing to search."
           : "No matching stations";
@@ -190,7 +191,7 @@ export function attachStationPicker(input, hidden, { initialCrs, stadiums = fals
       entries.push({ group, station, badge, meta, saved });
     };
 
-    if (savedPlaces) {
+    if (includeSavedPlaces()) {
       const home = getHomeStation();
       const work = getWorkStation();
       if (home) push("Saved places", home, "Home", null, "home");
